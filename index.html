@@ -205,10 +205,10 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // ドキュメントID（そのまま表示）
-        const docIdHeading = document.createElement("h3");
-        docIdHeading.textContent = `${data.id}`;
-        itemDiv.appendChild(docIdHeading);
+        // 「titleフィールド」を表示する（もしtitleが無い場合はidを表示）
+        const titleHeading = document.createElement("h3");
+        titleHeading.textContent = data.title || data.id;
+        itemDiv.appendChild(titleHeading);
 
         // 商品の説明 (textフィールド)
         if (data.text) {
