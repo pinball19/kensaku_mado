@@ -82,7 +82,7 @@
 
   <!-- 検索フォーム -->
   <div class="search-container">
-    <input id="keywordInput" type="text" placeholder="テキストを入力（完全一致）" />
+    <input id="keywordInput" type="text" placeholder="テキストを入力（部分一致OK）" />
     <button id="searchBtn">検索</button>
   </div>
 
@@ -92,8 +92,9 @@
   <!-- Firebase SDK (Firestore v9) をCDNから読み込み -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
 
+    // Firebaseの設定
     const firebaseConfig = {
       apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
@@ -110,60 +111,79 @@
     const searchBtn = document.getElementById("searchBtn");
     const resultsContainer = document.getElementById("results");
 
-    searchBtn.addEventListener("click", async () => {
+    let allProducts = [];  // Firestoreの全データを保持する配列
+
+    // 初回ロード時にFirestoreのデータをすべて取得
+    async function fetchAllProducts() {
+      try {
+        const snapshot = await getDocs(collection(db, "products"));
+        snapshot.forEach((doc) => {
+          allProducts.push({ id: doc.id, ...doc.data() });
+        });
+      } catch (err) {
+        console.error("データ取得エラー:", err);
+      }
+    }
+
+    // 検索ボタンがクリックされたとき
+    searchBtn.addEventListener("click", () => {
       const keyword = keywordInput.value.trim();
       if (!keyword) {
-        resultsContainer.innerHTML = `<p>ドキュメントIDを入力してください。</p>`;
+        resultsContainer.innerHTML = `<p>検索キーワードを入力してください。</p>`;
         return;
       }
 
-      const docRef = doc(db, "products", keyword);
-      try {
-        const docSnap = await getDoc(docRef);
+      // 部分一致でフィルタリング
+      const matchedResults = allProducts.filter((data) => 
+        data.id.includes(keyword) || (data.text && data.text.includes(keyword))
+      );
 
-        if (docSnap.exists()) {
-          displayResults(docSnap.data(), keyword);
-        } else {
-          resultsContainer.innerHTML = `<p>該当する商品が見つかりません。</p>`;
-        }
-      } catch (err) {
-        console.error("検索エラー:", err);
-        resultsContainer.innerHTML = `<p>検索時にエラーが発生しました。</p>`;
-      }
+      displayResults(matchedResults);
     });
 
-    function displayResults(data, docId) {
+    // 結果を表示する関数
+    function displayResults(results) {
       resultsContainer.innerHTML = ""; // 結果をクリア
 
-      const itemDiv = document.createElement("div");
-      itemDiv.classList.add("result-item");
-
-      // ドキュメントID
-      const docIdHeading = document.createElement("h3");
-      docIdHeading.textContent = `${docId}`;
-      itemDiv.appendChild(docIdHeading);
-
-      // 商品の説明 (textフィールド)
-      if (data.text) {
-        const descriptionP = document.createElement("p");
-        descriptionP.textContent = `説明: ${data.text}`;
-        itemDiv.appendChild(descriptionP);
+      if (results.length === 0) {
+        resultsContainer.innerHTML = `<p>該当する商品が見つかりません。</p>`;
+        return;
       }
 
-      // URLフィールド（url1～url3）のリンク生成
-      const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
-      urlFields.forEach((url, index) => {
-        const linkEl = document.createElement("a");
-        linkEl.href = url;
-        linkEl.target = "_blank";
-        linkEl.rel = "noopener noreferrer";
-        linkEl.textContent = `関連リンク${index + 1}`;
-        itemDiv.appendChild(linkEl);
-      });
+      results.forEach((data) => {
+        const itemDiv = document.createElement("div");
+        itemDiv.classList.add("result-item");
 
-      // 結果エリアに挿入
-      resultsContainer.appendChild(itemDiv);
+        // ドキュメントID
+        const docIdHeading = document.createElement("h3");
+        docIdHeading.textContent = `${data.id}`;
+        itemDiv.appendChild(docIdHeading);
+
+        // 商品の説明 (textフィールド)
+        if (data.text) {
+          const descriptionP = document.createElement("p");
+          descriptionP.textContent = `説明: ${data.text}`;
+          itemDiv.appendChild(descriptionP);
+        }
+
+        // URLフィールド（url1～url3）のリンク生成
+        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
+        urlFields.forEach((url, index) => {
+          const linkEl = document.createElement("a");
+          linkEl.href = url;
+          linkEl.target = "_blank";
+          linkEl.rel = "noopener noreferrer";
+          linkEl.textContent = `関連リンク${index + 1}`;
+          itemDiv.appendChild(linkEl);
+        });
+
+        // 結果エリアに挿入
+        resultsContainer.appendChild(itemDiv);
+      });
     }
+
+    // Firestoreの全データを取得（ページロード時に一度だけ）
+    fetchAllProducts();
   </script>
 </body>
 </html>
