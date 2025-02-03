@@ -55,14 +55,23 @@
     //=====================================================
     // 2) Firebaseの設定情報を入力（適切な設定に置き換えてください）
     //=====================================================
-    const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
-      authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
-      projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-      messagingSenderId: "2155745043",
-      appId: "1:215585745c99c5066b56cd4566"
-    };
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
+  authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
+  projectId: "slack-bot-firebase-7991a",
+  storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
+  messagingSenderId: "215585745043",
+  appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
     //=====================================================
     // 3) Firebase初期化 & Firestore取得
