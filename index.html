@@ -17,7 +17,9 @@
     }
     h1 {
       color: #0056b3;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
+      font-size: 1.8rem; /* フォントサイズを縮小 */
+      text-align: center; /* タイトルを中央揃え */
     }
     .search-container {
       display: flex;
@@ -25,14 +27,14 @@
       justify-content: center;
       width: 100%;
       max-width: 600px;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     input[type="text"] {
       padding: 10px;
       font-size: 1rem;
       border: 1px solid #ccc;
       border-radius: 5px;
-      width: 70%;
+      width: calc(100% - 90px); /* ボタン幅を差し引いた幅 */
       margin-right: 10px;
     }
     button {
@@ -44,6 +46,7 @@
       border-radius: 5px;
       cursor: pointer;
       transition: background-color 0.3s;
+      width: 80px; /* ボタンの固定幅 */
     }
     button:hover {
       background-color: #003f8a;
@@ -56,43 +59,43 @@
       background-color: #ffffff;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       width: 100%;
-      max-width: 600px;
+      max-width: 600px; /* 出力窓が画面内に収まるよう設定 */
+      word-wrap: break-word; /* 長い文字列を折り返し */
     }
     .result-item h3 {
       margin-top: 0;
       color: #0056b3;
+      font-size: 1.2rem; /* フォントサイズを縮小 */
     }
     .result-item p {
       margin: 5px 0;
       color: #555;
       white-space: pre-wrap; /* 必要に応じてCSSでも改行を制御可能 */
     }
-    .link-card {
-      background-color: #f4f8fb;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 10px;
-      margin: 10px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      text-decoration: none;
+    .result-item a {
       color: #0056b3;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      text-decoration: underline;
+      display: block;
+      margin-top: 10px;
     }
-    .link-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    .result-item a:hover {
+      color: #003f8a;
     }
-    .link-card-title {
-      font-size: 1rem;
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-    .link-card-url {
-      font-size: 0.9rem;
-      color: #555;
-      word-break: break-all;
+    @media screen and (max-width: 480px) {
+      h1 {
+        font-size: 1.6rem; /* スマホ向けフォントサイズ調整 */
+      }
+      .search-container {
+        flex-wrap: wrap; /* ボタンが横並びに収まらない場合、折り返し */
+      }
+      input[type="text"] {
+        width: 100%; /* 入力フィールドを画面幅いっぱいに */
+        margin-right: 0; /* 余白を削除 */
+        margin-bottom: 10px; /* ボタンとの間に余白を追加 */
+      }
+      button {
+        width: 100%; /* ボタンを画面幅いっぱいに */
+      }
     }
   </style>
 </head>
@@ -115,12 +118,12 @@
 
     // Firebaseの設定
     const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
-      authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
-      projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-      messagingSenderId: "2155745043",
-      appId: "1:215585745c99c5066b56cd4566"
+      apiKey: "API_KEY",
+      authDomain: "PROJECT_ID.firebaseapp.com",
+      projectId: "PROJECT_ID",
+      storageBucket: "PROJECT_ID.appspot.com",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -185,31 +188,15 @@
           itemDiv.appendChild(descriptionP);
         }
 
-        // URLフィールド（url1～url3）とそのタイトル（url1_title～url3_title）のリンク生成
-        const urlFields = [
-          { url: data.url1, title: data.url1_title },
-          { url: data.url2, title: data.url2_title },
-          { url: data.url3, title: data.url3_title }
-        ].filter(field => field.url); // URLが存在するものだけフィルタ
-
-        urlFields.forEach(({ url, title }) => {
-          const linkCard = document.createElement("a");
-          linkCard.href = url;
-          linkCard.target = "_blank";
-          linkCard.rel = "noopener noreferrer";
-          linkCard.classList.add("link-card");
-
-          const linkTitle = document.createElement("div");
-          linkTitle.textContent = title || "タイトルなし";
-          linkTitle.classList.add("link-card-title");
-
-          const linkUrl = document.createElement("div");
-          linkUrl.textContent = url;
-          linkUrl.classList.add("link-card-url");
-
-          linkCard.appendChild(linkTitle);
-          linkCard.appendChild(linkUrl);
-          itemDiv.appendChild(linkCard);
+        // URLフィールド（url1～url3）のリンク生成
+        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
+        urlFields.forEach((url, index) => {
+          const linkEl = document.createElement("a");
+          linkEl.href = url;
+          linkEl.target = "_blank";
+          linkEl.rel = "noopener noreferrer";
+          linkEl.textContent = `関連リンク${index + 1}`;
+          itemDiv.appendChild(linkEl);
         });
 
         // 結果エリアに挿入
