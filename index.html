@@ -5,7 +5,6 @@
   <title>Firestore Simple Search (Products Example)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    /* 簡易スタイル調整 */
     body {
       font-family: sans-serif;
       margin: 20px;
@@ -32,7 +31,7 @@
 
   <!-- 検索フォーム：ユーザーが入力するキーワード -->
   <div>
-    <input id="keywordInput" type="text" placeholder="ドキュメント名を入力 (documentフィールドと完全一致)" />
+    <input id="keywordInput" type="text" placeholder="キーワードを入力 (textフィールドと完全一致)" />
     <button id="searchBtn">検索</button>
   </div>
 
@@ -54,16 +53,16 @@
     } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
 
     //=====================================================
-    // 2) Firebaseの設定情報を入力（ダミー例なので置き換えてください）
+    // 2) Firebaseの設定情報を入力（適切な設定に置き換えてください）
     //=====================================================
     const firebaseConfig = {
-  apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
-  authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
-  projectId: "slack-bot-firebase-7991a",
-  storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-  messagingSenderId: "215585745043",
-  appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
-};
+      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
+      authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
+      projectId: "slack-bot-firebase-7991a",
+      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
+      messagingSenderId: "2155745043",
+      appId: "1:215585745c99c5066b56cd4566"
+    };
 
     //=====================================================
     // 3) Firebase初期化 & Firestore取得
@@ -84,12 +83,16 @@
     searchBtn.addEventListener("click", async () => {
       const keyword = keywordInput.value.trim();
       if (!keyword) {
+        resultsContainer.innerHTML = `<p>キーワードを入力してください。</p>`;
         return;
       }
 
-      // productsコレクション内の document フィールドが keyword と一致するドキュメントを取得
+      console.log("検索キーワード:", keyword);
+
+      // productsコレクション内の text フィールドが keyword と一致するドキュメントを取得
       const q = query(collection(db, "products"), where("text", "==", keyword));
       try {
+        console.log("クエリを実行します...");
         const snapshot = await getDocs(q);
         displayResults(snapshot);
       } catch (err) {
@@ -119,13 +122,13 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // ドキュメント名の表示 (documentフィールド)
-        const docNameP = document.createElement("p");
-        docNameP.textContent = `ドキュメント名 (document): ${data.document || ""}`;
-        itemDiv.appendChild(docNameP);
+        // 商品の説明 (textフィールド)
+        const descriptionP = document.createElement("p");
+        descriptionP.textContent = `説明: ${data.text || "情報なし"}`;
+        itemDiv.appendChild(descriptionP);
 
-        // URLフィールド（url1～url5）の表示
-        const urlFields = [data.url1, data.url2, data.url3, data.url4, data.url5].filter(Boolean);
+        // URLフィールド（url1～url3）の表示
+        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
         urlFields.forEach((url, index) => {
           const linkEl = document.createElement("a");
           linkEl.href = url;
@@ -133,15 +136,6 @@
           linkEl.rel = "noopener noreferrer";
           linkEl.textContent = `関連リンク${index + 1}`;
           itemDiv.appendChild(linkEl);
-        });
-
-        // 画像フィールド（gazou1～gazou3）の表示
-        const imageFields = [data.gazou1, data.gazou2, data.gazou3].filter(Boolean);
-        imageFields.forEach(imgUrl => {
-          const imgEl = document.createElement("img");
-          imgEl.src = imgUrl;
-          imgEl.alt = "商品画像";
-          itemDiv.appendChild(imgEl);
         });
 
         // 結果エリアに挿入
