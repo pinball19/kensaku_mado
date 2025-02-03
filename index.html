@@ -88,7 +88,7 @@
       }
 
       // productsコレクション内の document フィールドが keyword と一致するドキュメントを取得
-      const q = query(collection(db, "products"), where("document", "==", keyword));
+      const q = query(collection(db, "products"), where("text", "==", keyword));
       try {
         const snapshot = await getDocs(q);
         displayResults(snapshot);
