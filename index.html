@@ -2,37 +2,39 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>Firestore Simple Search by Document ID</title>
+  <title>Search by Document ID</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: sans-serif;
       margin: 20px;
+      line-height: 1.6;
     }
     .result-item {
       border: 1px solid #ccc;
-      margin: 8px 0;
-      padding: 8px;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+      background-color: #f9f9f9;
     }
-    .result-item img {
-      max-width: 100px;
-      display: block;
-      margin-top: 8px;
+    .result-item h3 {
+      margin-top: 0;
     }
-    a {
-      display: block;
-      margin: 2px 0;
+    .result-item a {
       color: blue;
+      text-decoration: underline;
+      display: inline-block;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>Firestore Search by Document ID</h1>
+  <h1>Search by Document ID</h1>
 
-  <!-- 検索フォーム：ユーザーが入力するキーワード -->
+  <!-- 検索フォーム -->
   <div>
     <input id="keywordInput" type="text" placeholder="ドキュメントIDを入力" />
-    <button id="searchBtn">検索</button>
+    <button id="searchBtn">取得</button>
   </div>
 
   <!-- 結果表示エリア -->
@@ -40,19 +42,9 @@
 
   <!-- Firebase SDK (Firestore v9) をCDNから読み込み -->
   <script type="module">
-    //=====================================================
-    // 1) Firebase SDKをCDN経由で読み込み
-    //=====================================================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js";
-    import {
-      getFirestore,
-      doc,
-      getDoc
-    } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
 
-    //=====================================================
-    // 2) Firebaseの設定情報を入力（適切な設定に置き換えてください）
-    //=====================================================
     const firebaseConfig = {
       apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
@@ -62,22 +54,13 @@
       appId: "1:215585745c99c5066b56cd4566"
     };
 
-    //=====================================================
-    // 3) Firebase初期化 & Firestore取得
-    //=====================================================
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    //=====================================================
-    // 4) DOM要素を取得
-    //=====================================================
     const keywordInput = document.getElementById("keywordInput");
     const searchBtn = document.getElementById("searchBtn");
     const resultsContainer = document.getElementById("results");
 
-    //=====================================================
-    // 5) 検索ボタン押下時の処理
-    //=====================================================
     searchBtn.addEventListener("click", async () => {
       const keyword = keywordInput.value.trim();
       if (!keyword) {
@@ -85,16 +68,12 @@
         return;
       }
 
-      console.log("検索ドキュメントID:", keyword);
-
-      // ドキュメントIDに基づいて取得
       const docRef = doc(db, "products", keyword);
       try {
-        console.log("ドキュメントを取得します...");
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-          displayResults(docSnap.data());
+          displayResults(docSnap.data(), keyword);
         } else {
           resultsContainer.innerHTML = `<p>該当する商品が見つかりません。</p>`;
         }
@@ -104,23 +83,25 @@
       }
     });
 
-    //=====================================================
-    // 6) 結果表示用関数
-    //=====================================================
-    function displayResults(data) {
-      // いったん表示領域をクリア
-      resultsContainer.innerHTML = "";
+    function displayResults(data, docId) {
+      resultsContainer.innerHTML = ""; // 結果をクリア
 
-      // 取得したデータを表示
       const itemDiv = document.createElement("div");
       itemDiv.classList.add("result-item");
 
-      // 商品の説明 (textフィールド)
-      const descriptionP = document.createElement("p");
-      descriptionP.textContent = `説明: ${data.text || "情報なし"}`;
-      itemDiv.appendChild(descriptionP);
+      // ドキュメントID
+      const docIdHeading = document.createElement("h3");
+      docIdHeading.textContent = `ドキュメントID: ${docId}`;
+      itemDiv.appendChild(docIdHeading);
 
-      // URLフィールド（url1～url3）の表示
+      // 商品の説明 (textフィールド)
+      if (data.text) {
+        const descriptionP = document.createElement("p");
+        descriptionP.textContent = `説明: ${data.text}`;
+        itemDiv.appendChild(descriptionP);
+      }
+
+      // URLフィールド（url1～url3）のリンク生成
       const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
       urlFields.forEach((url, index) => {
         const linkEl = document.createElement("a");
