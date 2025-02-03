@@ -167,14 +167,19 @@
           itemDiv.appendChild(descriptionP);
         }
 
-        // URLフィールド（url1～url3）のリンク生成
-        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
-        urlFields.forEach((url, index) => {
+        // URLフィールド（url1～url3）とそのタイトル（url1_title～url3_title）のリンク生成
+        const urlFields = [
+          { url: data.url1, title: data.url1_title },
+          { url: data.url2, title: data.url2_title },
+          { url: data.url3, title: data.url3_title }
+        ].filter(field => field.url); // URLが存在するものだけフィルタ
+
+        urlFields.forEach(({ url, title }, index) => {
           const linkEl = document.createElement("a");
           linkEl.href = url;
           linkEl.target = "_blank";
           linkEl.rel = "noopener noreferrer";
-          linkEl.textContent = `関連リンク${index + 1}`;
+          linkEl.textContent = `関連リンク${index + 1}: ${title || "タイトルなし"}`;
           itemDiv.appendChild(linkEl);
         });
 
