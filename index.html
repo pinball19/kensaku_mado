@@ -183,9 +183,10 @@
         return;
       }
 
-      // 部分一致でフィルタリング
+      // 部分一致でフィルタリング（「titleフィールド」と「textフィールド」を検索対象とする）
       const matchedResults = allProducts.filter((data) =>
-        data.id.includes(keyword) || (data.text && data.text.includes(keyword))
+        (data.title && data.title.includes(keyword)) ||
+        (data.text && data.text.includes(keyword))
       );
 
       displayResults(matchedResults);
@@ -204,7 +205,7 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // ドキュメントID
+        // ドキュメントID（そのまま表示）
         const docIdHeading = document.createElement("h3");
         docIdHeading.textContent = `${data.id}`;
         itemDiv.appendChild(docIdHeading);
