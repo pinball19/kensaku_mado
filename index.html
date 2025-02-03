@@ -67,14 +67,32 @@
       color: #555;
       white-space: pre-wrap; /* 必要に応じてCSSでも改行を制御可能 */
     }
-    .result-item a {
+    .link-card {
+      background-color: #f4f8fb;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-decoration: none;
       color: #0056b3;
-      text-decoration: underline;
-      display: block;
-      margin-top: 10px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .result-item a:hover {
-      color: #003f8a;
+    .link-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .link-card-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .link-card-url {
+      font-size: 0.9rem;
+      color: #555;
+      word-break: break-all;
     }
   </style>
 </head>
@@ -174,13 +192,24 @@
           { url: data.url3, title: data.url3_title }
         ].filter(field => field.url); // URLが存在するものだけフィルタ
 
-        urlFields.forEach(({ url, title }, index) => {
-          const linkEl = document.createElement("a");
-          linkEl.href = url;
-          linkEl.target = "_blank";
-          linkEl.rel = "noopener noreferrer";
-          linkEl.textContent = `関連リンク${index + 1}: ${title || "タイトルなし"}`;
-          itemDiv.appendChild(linkEl);
+        urlFields.forEach(({ url, title }) => {
+          const linkCard = document.createElement("a");
+          linkCard.href = url;
+          linkCard.target = "_blank";
+          linkCard.rel = "noopener noreferrer";
+          linkCard.classList.add("link-card");
+
+          const linkTitle = document.createElement("div");
+          linkTitle.textContent = title || "タイトルなし";
+          linkTitle.classList.add("link-card-title");
+
+          const linkUrl = document.createElement("div");
+          linkUrl.textContent = url;
+          linkUrl.classList.add("link-card-url");
+
+          linkCard.appendChild(linkTitle);
+          linkCard.appendChild(linkUrl);
+          itemDiv.appendChild(linkCard);
         });
 
         // 結果エリアに挿入
