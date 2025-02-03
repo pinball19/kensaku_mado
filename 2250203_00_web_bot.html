@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Firestore Simple Search (Products Example)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    /* 簡易スタイル調整 */
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+    .result-item {
+      border: 1px solid #ccc;
+      margin: 8px 0;
+      padding: 8px;
+    }
+    .result-item img {
+      max-width: 100px;
+      display: block;
+      margin-top: 8px;
+    }
+    a {
+      display: block;
+      margin: 2px 0;
+      color: blue;
+    }
+  </style>
+</head>
+<body>
+  <h1>Firestore Search - Products</h1>
+
+  <!-- 検索フォーム：ユーザーが入力するキーワード -->
+  <div>
+    <input id="keywordInput" type="text" placeholder="ドキュメント名を入力 (documentフィールドと完全一致)" />
+    <button id="searchBtn">検索</button>
+  </div>
+
+  <!-- 結果表示エリア -->
+  <div id="results"></div>
+
+  <!-- Firebase SDK (Firestore v9) をCDNから読み込み -->
+  <script type="module">
+    //=====================================================
+    // 1) Firebase SDKをCDN経由で読み込み
+    //=====================================================
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      query,
+      where,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
+
+    //=====================================================
+    // 2) Firebaseの設定情報を入力（ダミー例なので置き換えてください）
+    //=====================================================
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "your-project-id.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project-id.appspot.com",
+      messagingSenderId: "SENDER_ID",
+      appId: "APP_ID"
+    };
+
+    //=====================================================
+    // 3) Firebase初期化 & Firestore取得
+    //=====================================================
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    //=====================================================
+    // 4) DOM要素を取得
+    //=====================================================
+    const keywordInput = document.getElementById("keywordInput");
+    const searchBtn = document.getElementById("searchBtn");
+    const resultsContainer = document.getElementById("results");
+
+    //=====================================================
+    // 5) 検索ボタン押下時の処理
+    //=====================================================
+    searchBtn.addEventListener("click", async () => {
+      const keyword = keywordInput.value.trim();
+      if (!keyword) {
+        return;
+      }
+
+      // productsコレクション内の document フィールドが keyword と一致するドキュメントを取得
+      const q = query(collection(db, "products"), where("document", "==", keyword));
+      try {
+        const snapshot = await getDocs(q);
+        displayResults(snapshot);
+      } catch (err) {
+        console.error("検索エラー:", err);
+        resultsContainer.innerHTML = `<p>検索時にエラーが発生しました。</p>`;
+      }
+    });
+
+    //=====================================================
+    // 6) 結果表示用関数
+    //=====================================================
+    function displayResults(snapshot) {
+      // いったん表示領域をクリア
+      resultsContainer.innerHTML = "";
+
+      // ドキュメントが何もなければメッセージを表示
+      if (snapshot.empty) {
+        resultsContainer.innerHTML = `<p>該当商品がありません。</p>`;
+        return;
+      }
+
+      // 取得したドキュメントを順に処理
+      snapshot.forEach(doc => {
+        const data = doc.data();
+
+        // 1件分の表示ブロックを生成
+        const itemDiv = document.createElement("div");
+        itemDiv.classList.add("result-item");
+
+        // ドキュメント名の表示 (documentフィールド)
+        const docNameP = document.createElement("p");
+        docNameP.textContent = `ドキュメント名 (document): ${data.document || ""}`;
+        itemDiv.appendChild(docNameP);
+
+        // URLフィールド（url1～url5）の表示
+        const urlFields = [data.url1, data.url2, data.url3, data.url4, data.url5].filter(Boolean);
+        urlFields.forEach((url, index) => {
+          const linkEl = document.createElement("a");
+          linkEl.href = url;
+          linkEl.target = "_blank";
+          linkEl.rel = "noopener noreferrer";
+          linkEl.textContent = `関連リンク${index + 1}`;
+          itemDiv.appendChild(linkEl);
+        });
+
+        // 画像フィールド（gazou1～gazou3）の表示
+        const imageFields = [data.gazou1, data.gazou2, data.gazou3].filter(Boolean);
+        imageFields.forEach(imgUrl => {
+          const imgEl = document.createElement("img");
+          imgEl.src = imgUrl;
+          imgEl.alt = "商品画像";
+          itemDiv.appendChild(imgEl);
+        });
+
+        // 結果エリアに挿入
+        resultsContainer.appendChild(itemDiv);
+      });
+    }
+  </script>
+</body>
+</html>
