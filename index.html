@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     /* 全体の基本スタイル */
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
@@ -79,6 +82,7 @@
       display: flex;
       align-items: center;
       margin-bottom: 20px;
+      flex-wrap: nowrap;  /* ← 追加：折り返さない */
     }
     .search-container input[type="text"] {
       flex: 1;
@@ -96,6 +100,7 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
+      flex-shrink: 0; /* ← 追加：ボタンの縮み防止 */
     }
     /* 出力窓のデザイン（過去に記述したコード4と同じ） */
     .result-item {
@@ -149,13 +154,20 @@
       text-align: center;
       display: none;
     }
-    /* スマホなど小さい画面向け */
+    /* スマホなど小さい画面向けの調整 */
     @media (max-width: 480px) {
-      .search-container {
-         padding: 0 10px;
+      .container {
+        width: 100%;
+        margin: 0;
+        padding: 0 10px;
       }
-      button {
+      .search-container {
+         padding: 0;
+      }
+      /* ボタンのパディングも若干調整 */
+      .search-container button {
          padding: 10px;
+         font-size: 0.9rem;
       }
     }
   </style>
@@ -343,7 +355,7 @@
     });
 
     // 出力窓の内容・デザインを「過去に記述したコード4」と同じにし、
-    // かつ編集ボタンをクリックしてから編集モードに切り替えて各フィールドを修正できる機能を追加
+    // かつ編集ボタンをクリックしてから編集モードに切り替えて各フィールド（title, text, url1～url3 とそのタイトル）を修正できる機能を追加
     function displayResults(results) {
       resultsContainer.innerHTML = ""; // 結果をクリア
 
@@ -371,7 +383,6 @@
         }
 
         // 静的表示用リンクカード群（カードスタイル）
-        // 保存時に再利用するため、staticLinkCards 配列に保持しておく
         let staticLinkCards = [];
         const urlFields = [
           { url: data.url1, title: data.url1_title },
@@ -423,10 +434,9 @@
             descriptionTextarea.placeholder = "説明を入力";
           }
 
-          // 編集モード用の URL 入力欄コンテナ（順番を「リンクタイトル」「URL」）
+          // 編集モード用の URL 入力欄コンテナ（順番：リンクタイトル, URL）
           const urlContainer = document.createElement("div");
           urlContainer.style.marginBottom = "10px";
-          // ループ：i = 1～3
           for (let i = 1; i <= 3; i++) {
             const urlTitleInput = document.createElement("input");
             urlTitleInput.type = "text";
@@ -495,7 +505,7 @@
               const newTitleHeading = document.createElement("h3");
               newTitleHeading.textContent = newTitle || data.id;
               itemDiv.replaceChild(newTitleHeading, titleInput);
-              titleHeading = newTitleHeading;  // 更新して再利用できるように
+              titleHeading = newTitleHeading;  // 更新して再利用
 
               let newDescriptionP;
               if (newText) {
@@ -513,7 +523,7 @@
               }
               // 編集用 URL 入力欄を削除
               itemDiv.removeChild(urlContainer);
-              // 再生成：静的リンクカード群（カードスタイル）
+              // 再生成：静的リンクカード群
               const updatedUrlFields = [
                 { url: data.url1, title: data.url1_title },
                 { url: data.url2, title: data.url2_title },
