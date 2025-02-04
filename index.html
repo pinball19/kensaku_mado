@@ -97,6 +97,7 @@
       border-radius: 5px;
       cursor: pointer;
     }
+    /* 出力窓のデザイン：過去に記述したコード3と同じ */
     .result-item {
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -114,6 +115,7 @@
     .result-item p {
       margin: 5px 0;
       color: #555;
+      white-space: pre-wrap;
     }
     .result-item a {
       color: #0056b3;
@@ -128,6 +130,15 @@
     #loader {
       text-align: center;
       display: none;
+    }
+    /* スマホなど小さい画面向け */
+    @media (max-width: 480px) {
+      .search-container {
+         padding: 0 10px;
+      }
+      button {
+         padding: 10px;
+      }
     }
   </style>
 </head>
@@ -179,12 +190,12 @@
   <script>
     // Firebase 設定
     const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
+      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
       projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-      messagingSenderId: "215585745043",
-      appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
+      storageBucket: "slack-bot-firebase-7991a.appspot.com",
+      messagingSenderId: "2155745043",
+      appId: "1:2155745043:web:123456abcdef"
     };
 
     // Firebase 初期化
@@ -305,7 +316,7 @@
         errorContainer.textContent = "検索キーワードを入力してください。";
         return;
       }
-      // タイトルまたは本文に部分一致する資料を抽出
+      // 「titleフィールド」と「textフィールド」を検索対象に部分一致で抽出
       const matchedResults = allProducts.filter((data) =>
         (data.title && data.title.includes(keyword)) ||
         (data.text && data.text.includes(keyword))
@@ -313,9 +324,9 @@
       displayResults(matchedResults);
     });
 
-    // 出力窓の内容・デザインを過去のコードと同様にする displayResults 関数
+    // 出力窓の内容とデザインを「過去に記述したコード3」と同じにする displayResults 関数
     function displayResults(results) {
-      resultsContainer.innerHTML = "";
+      resultsContainer.innerHTML = ""; // 結果をクリア
       if (results.length === 0) {
         resultsContainer.innerHTML = "<p>該当する資料が見つかりません。</p>";
         return;
@@ -324,7 +335,7 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // ドキュメントID（data.id を利用）
+        // ドキュメントIDを表示（ここでは data.id を表示）
         const docIdHeading = document.createElement("h3");
         docIdHeading.textContent = data.id;
         itemDiv.appendChild(docIdHeading);
