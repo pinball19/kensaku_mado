@@ -97,7 +97,7 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    /* 出力窓のデザイン（過去に記述したコード4と同じ） */
+    /* 出力窓のデザイン：過去に記述したコード4と同じ */
     .result-item {
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -342,7 +342,7 @@
       displayResults(matchedResults);
     });
 
-    // 出力窓の内容・デザイン（過去に記述したコード4と同じ）に加えて編集機能を追加
+    // 出力窓の内容・デザイン（過去に記述したコード4と同じ）に加え、編集機能を追加
     function displayResults(results) {
       resultsContainer.innerHTML = ""; // 結果をクリア
 
@@ -356,10 +356,12 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
+        // 静的表示用タイトル
         const titleHeading = document.createElement("h3");
         titleHeading.textContent = data.title || data.id;
         itemDiv.appendChild(titleHeading);
 
+        // 静的表示用説明
         let descriptionP;
         if (data.text) {
           descriptionP = document.createElement("p");
@@ -367,7 +369,7 @@
           itemDiv.appendChild(descriptionP);
         }
 
-        // リンクカード群（過去コード4と同様のカードスタイル）
+        // 静的表示用リンクカード群（url1～url3 とそのタイトル）
         const urlFields = [
           { url: data.url1, title: data.url1_title },
           { url: data.url2, title: data.url2_title },
@@ -399,9 +401,9 @@
         editButton.style.marginTop = "10px";
         itemDiv.appendChild(editButton);
 
-        // 編集ボタンがクリックされたら編集モードへ切替
+        // 編集ボタンをクリック → 編集モードに切替
         editButton.addEventListener("click", () => {
-          // 編集モードに必要な input/textarea を作成
+          // 編集用の title, description の input/textarea を作成
           const titleInput = document.createElement("input");
           titleInput.type = "text";
           titleInput.value = data.title || data.id;
@@ -421,7 +423,42 @@
             descriptionTextarea.style.marginBottom = "10px";
           }
 
-          // 編集モード用の Save と Cancel ボタンを作成
+          // 編集用の URL 入力コンテナを作成
+          const urlContainer = document.createElement("div");
+          urlContainer.style.marginBottom = "10px";
+          // 3つのURLフィールドについてループ（1～3）
+          for (let i = 1; i <= 3; i++) {
+            const urlInput = document.createElement("input");
+            urlInput.type = "text";
+            urlInput.placeholder = `URL${i}`;
+            urlInput.style.width = "100%";
+            urlInput.style.marginBottom = "5px";
+            urlInput.value = data["url" + i] || "";
+            urlContainer.appendChild(urlInput);
+
+            const urlTitleInput = document.createElement("input");
+            urlTitleInput.type = "text";
+            urlTitleInput.placeholder = `リンクタイトル${i}`;
+            urlTitleInput.style.width = "100%";
+            urlTitleInput.style.marginBottom = "10px";
+            urlTitleInput.value = data["url" + i + "_title"] || "";
+            urlContainer.appendChild(urlTitleInput);
+          }
+
+          // 非表示にしていた静的表示要素を編集用に置き換え
+          itemDiv.replaceChild(titleInput, titleHeading);
+          if (descriptionP) {
+            itemDiv.replaceChild(descriptionTextarea, descriptionP);
+          } else {
+            itemDiv.insertBefore(descriptionTextarea, editButton);
+          }
+          // 静的なリンクカード群を削除
+          const oldLinkCards = itemDiv.querySelectorAll('.link-card');
+          oldLinkCards.forEach(el => el.remove());
+          // 編集用 URL 入力欄を挿入（編集ボタンの直前）
+          itemDiv.insertBefore(urlContainer, editButton);
+
+          // 編集用 Save, Cancel ボタンを作成
           const saveButton = document.createElement("button");
           saveButton.textContent = "保存";
           saveButton.style.marginRight = "10px";
@@ -429,17 +466,6 @@
           const cancelButton = document.createElement("button");
           cancelButton.textContent = "キャンセル";
 
-          // 非表示にしていたリンクカード群と編集ボタンは一時的に隠す
-          editButton.style.display = "none";
-          // ※　既存の表示要素（titleHeading, descriptionP）を置き換える
-          itemDiv.replaceChild(titleInput, titleHeading);
-          if (descriptionP) {
-            itemDiv.replaceChild(descriptionTextarea, descriptionP);
-          } else {
-            // 説明がなかった場合は、input を新規追加（編集用要素を編集ボタンの上に追加）
-            itemDiv.insertBefore(descriptionTextarea, editButton);
-          }
-          // 保存・キャンセルボタンを追加
           itemDiv.appendChild(saveButton);
           itemDiv.appendChild(cancelButton);
 
@@ -447,30 +473,76 @@
           saveButton.addEventListener("click", async () => {
             const newTitle = titleInput.value.trim();
             const newText = descriptionTextarea.value.trim();
+
+            // 収集したURLとタイトルの編集結果をオブジェクトにまとめる
+            const newUrls = {};
+            const urlInputs = urlContainer.querySelectorAll('input');
+            // urlInputs は [url1, url1_title, url2, url2_title, url3, url3_title] の順番
+            for (let i = 0; i < 3; i++) {
+              newUrls["url" + (i + 1)] = urlInputs[i * 2].value.trim();
+              newUrls["url" + (i + 1) + "_title"] = urlInputs[i * 2 + 1].value.trim();
+            }
+
             try {
               await db.collection("products").doc(data.id).update({
                 title: newTitle,
-                text: newText
+                text: newText,
+                ...newUrls
               });
-              // 更新成功後、更新後の値を data に反映
+              // Firestore 更新後、data を更新
               data.title = newTitle;
               data.text = newText;
-              // 再度、静的表示に戻す
+              for (let i = 1; i <= 3; i++) {
+                data["url" + i] = newUrls["url" + i];
+                data["url" + i + "_title"] = newUrls["url" + i + "_title"];
+              }
+              // 静的表示に戻す：再作成した静的要素
               const newTitleHeading = document.createElement("h3");
               newTitleHeading.textContent = newTitle || data.id;
               itemDiv.replaceChild(newTitleHeading, titleInput);
 
+              let newDescriptionP;
               if (newText) {
-                const newDescriptionP = document.createElement("p");
+                newDescriptionP = document.createElement("p");
                 newDescriptionP.innerHTML = `説明: ${newText.replace(/\n/g, "<br>")}`;
-                itemDiv.replaceChild(newDescriptionP, descriptionTextarea);
+                if (descriptionP) {
+                  itemDiv.replaceChild(newDescriptionP, descriptionTextarea);
+                } else {
+                  itemDiv.insertBefore(newDescriptionP, editButton);
+                }
                 descriptionP = newDescriptionP;
               } else {
-                // 説明が空の場合は削除
                 itemDiv.removeChild(descriptionTextarea);
                 descriptionP = null;
               }
-              // 編集モード用の Save, Cancel ボタンを削除し、編集ボタンを再表示
+              // URL入力欄を削除
+              itemDiv.removeChild(urlContainer);
+              // 再度、静的なリンクカード群を生成
+              const updatedUrlFields = [
+                { url: data.url1, title: data.url1_title },
+                { url: data.url2, title: data.url2_title },
+                { url: data.url3, title: data.url3_title }
+              ].filter(field => field.url);
+              updatedUrlFields.forEach(({ url, title }) => {
+                const linkCard = document.createElement("a");
+                linkCard.href = url;
+                linkCard.target = "_blank";
+                linkCard.rel = "noopener noreferrer";
+                linkCard.classList.add("link-card");
+
+                const linkTitle = document.createElement("div");
+                linkTitle.textContent = title || "タイトルなし";
+                linkTitle.classList.add("link-card-title");
+
+                const linkUrl = document.createElement("div");
+                linkUrl.textContent = url;
+                linkUrl.classList.add("link-card-url");
+
+                linkCard.appendChild(linkTitle);
+                linkCard.appendChild(linkUrl);
+                itemDiv.insertBefore(linkCard, editButton);
+              });
+              // 編集ボタンの再表示、Save, Cancelボタンを削除
               itemDiv.removeChild(saveButton);
               itemDiv.removeChild(cancelButton);
               editButton.style.display = "inline-block";
@@ -480,7 +552,7 @@
             }
           });
 
-          // キャンセルボタンの処理：元の表示に戻す
+          // キャンセルボタンの処理：元の静的表示に戻す
           cancelButton.addEventListener("click", () => {
             itemDiv.replaceChild(titleHeading, titleInput);
             if (descriptionP) {
@@ -488,6 +560,29 @@
             } else {
               itemDiv.removeChild(descriptionTextarea);
             }
+            // 編集用 URL 入力欄を削除し、元のリンクカード群を再表示
+            itemDiv.querySelectorAll('#url-container')?.forEach(el => el.remove());
+            // 再生成：元の URLフィールドを利用
+            urlFields.forEach(({ url, title }) => {
+              const linkCard = document.createElement("a");
+              linkCard.href = url;
+              linkCard.target = "_blank";
+              linkCard.rel = "noopener noreferrer";
+              linkCard.classList.add("link-card");
+
+              const linkTitle = document.createElement("div");
+              linkTitle.textContent = title || "タイトルなし";
+              linkTitle.classList.add("link-card-title");
+
+              const linkUrl = document.createElement("div");
+              linkUrl.textContent = url;
+              linkUrl.classList.add("link-card-url");
+
+              linkCard.appendChild(linkTitle);
+              linkCard.appendChild(linkUrl);
+              itemDiv.insertBefore(linkCard, editButton);
+            });
+            // 編集ボタンの再表示、Save, Cancelボタンの削除
             itemDiv.removeChild(saveButton);
             itemDiv.removeChild(cancelButton);
             editButton.style.display = "inline-block";
