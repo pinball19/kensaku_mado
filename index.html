@@ -7,10 +7,6 @@
   <!-- FirebaseUI CSS -->
   <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.css" />
   <style>
-    /* 基本スタイル */
-    * {
-      box-sizing: border-box;
-    }
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
@@ -23,8 +19,11 @@
     }
     h1 {
       color: #0056b3;
-      word-break: keep-all;
       text-align: center;
+    }
+    #firebaseui-auth-container {
+      max-width: 400px;
+      margin: auto;
     }
     .search-container {
       display: flex;
@@ -34,53 +33,19 @@
     input[type="text"] {
       flex: 1;
       padding: 10px;
-      font-size: 1rem;
       margin-right: 10px;
       border: 1px solid #ccc;
       border-radius: 5px;
     }
     button {
-      padding: 10px 20px;
-      font-size: 1rem;
+      padding: 10px;
       background-color: #0056b3;
       color: white;
       border: none;
       border-radius: 5px;
-      cursor: pointer;
     }
-    button:hover {
-      background-color: #003f8a;
-    }
-    .result-item {
-      background-color: #fff;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    .result-item input[type="text"],
-    .result-item textarea {
-      width: 100%;
-      padding: 8px;
-      font-size: 1rem;
-      margin-bottom: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-    .error-message {
-      color: red;
-      margin-bottom: 10px;
-      text-align: center;
-    }
-    .signout-container {
-      text-align: right;
-      margin-bottom: 10px;
-    }
-    /* FirebaseUI の認証画面用 */
-    #firebaseui-auth-container {
-      max-width: 400px;
-      margin: auto;
+    #results {
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -89,192 +54,101 @@
   <div id="firebaseui-auth-container"></div>
   <div id="loader" style="text-align:center;">Loading...</div>
 
-  <!-- メインアプリ用コンテナ（認証後に表示） -->
+  <!-- メインアプリ用コンテナ -->
   <div id="app-container" class="container" style="display:none;">
-    <div class="signout-container">
+    <div style="text-align: right;">
       <button id="sign-out-btn">Sign Out</button>
     </div>
     <h1>内部資料検索＆更新システム</h1>
     <div class="search-container">
-      <input id="keywordInput" type="text" placeholder="検索キーワードを入力（部分一致）" />
+      <input id="keywordInput" type="text" placeholder="検索キーワードを入力" />
       <button id="searchBtn">検索</button>
     </div>
-    <div id="errorContainer" class="error-message"></div>
     <div id="results"></div>
   </div>
 
-  <!-- Firebase compat SDK の読み込み -->
+  <!-- Firebase SDK & FirebaseUI -->
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore-compat.js"></script>
-  <!-- FirebaseUI JS (CDN) -->
   <script src="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.js"></script>
-
   <script>
     // Firebase 設定
     const firebaseConfig = {
-  　　apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
-  　　authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
-  　　projectId: "slack-bot-firebase-7991a",
-  　　storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-  　　messagingSenderId: "215585745043",
-  　　appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
-　　　};
+      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
+      authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
+      projectId: "slack-bot-firebase-7991a",
+      storageBucket: "slack-bot-firebase-7991a.appspot.com",
+      messagingSenderId: "2155745043",
+      appId: "1:2155745043:web:123456abcdef"
+    };
 
-    // 初期化（compat バージョン）
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
 
-    // DOM 要素の取得
-    const keywordInput = document.getElementById("keywordInput");
-    const searchBtn = document.getElementById("searchBtn");
-    const resultsContainer = document.getElementById("results");
-    const errorContainer = document.getElementById("errorContainer");
-    const signOutBtn = document.getElementById("sign-out-btn");
-    const appContainer = document.getElementById("app-container");
-
-    // 全資料データをキャッシュするための変数
-    let allProducts = [];
-
-    // エラーメッセージ表示
-    function displayError(message) {
-      errorContainer.textContent = message;
-    }
-
-    // エラークリア
-    function clearError() {
-      errorContainer.textContent = "";
-    }
-
-    // Firestore から全資料を取得
-    async function fetchAllProducts() {
-      try {
-        const snapshot = await db.collection("products").get();
-        allProducts = [];
-        snapshot.forEach((docSnap) => {
-          allProducts.push({ id: docSnap.id, ...docSnap.data() });
-        });
-      } catch (err) {
-        console.error("データ取得エラー:", err);
-        displayError("データ取得中にエラーが発生しました。");
-      }
-    }
-
-    // 検索結果を表示し、インライン編集UIを提供
-    function displayResults(results) {
-      resultsContainer.innerHTML = "";
-      if (results.length === 0) {
-        resultsContainer.innerHTML = "<p>該当する資料が見つかりません。</p>";
-        return;
-      }
-
-      results.forEach((data) => {
-        const itemDiv = document.createElement("div");
-        itemDiv.classList.add("result-item");
-
-        // タイトル編集用 input（必須、3文字以上）
-        const titleInput = document.createElement("input");
-        titleInput.type = "text";
-        titleInput.value = data.title || "";
-        titleInput.placeholder = "タイトル（3文字以上）";
-        itemDiv.appendChild(titleInput);
-
-        // 本文編集用 textarea
-        const textArea = document.createElement("textarea");
-        textArea.value = data.text || "";
-        textArea.placeholder = "本文を入力";
-        itemDiv.appendChild(textArea);
-
-        // 保存ボタン（更新処理、エラーハンドリング、データ検証付き）
-        const saveButton = document.createElement("button");
-        saveButton.textContent = "保存";
-        saveButton.style.marginRight = "10px";
-        saveButton.addEventListener("click", async () => {
-          clearError();
-          // データ検証
-          if (!titleInput.value || titleInput.value.trim().length < 3) {
-            displayError("タイトルは3文字以上で入力してください。");
-            return;
-          }
-          // Firestore 更新処理
-          try {
-            await db.collection("products").doc(data.id).update({
-              title: titleInput.value.trim(),
-              text: textArea.value.trim()
-            });
-            alert("更新に成功しました。");
-          } catch (err) {
-            console.error("更新エラー:", err);
-            displayError("更新中にエラーが発生しました。再度お試しください。");
-          }
-        });
-        itemDiv.appendChild(saveButton);
-
-        // キャンセルボタン（再読み込みによって最新状態に戻す）
-        const cancelButton = document.createElement("button");
-        cancelButton.textContent = "キャンセル";
-        cancelButton.addEventListener("click", async () => {
-          await fetchAllProducts();
-          searchBtn.click();
-        });
-        itemDiv.appendChild(cancelButton);
-
-        resultsContainer.appendChild(itemDiv);
-      });
-    }
-
-    // 検索処理
-    searchBtn.addEventListener("click", async () => {
-      clearError();
-      const keyword = keywordInput.value.trim();
-      if (!keyword) {
-        displayError("検索キーワードを入力してください。");
-        return;
-      }
-      // タイトルまたは本文に部分一致する資料を抽出
-      const matchedResults = allProducts.filter((data) =>
-        (data.title && data.title.includes(keyword)) ||
-        (data.text && data.text.includes(keyword))
-      );
-      displayResults(matchedResults);
-    });
-
-    // サインアウト処理
-    signOutBtn.addEventListener("click", () => {
-      firebase.auth().signOut().catch((err) => {
-        console.error("サインアウトエラー:", err);
-      });
+    // セッション永続性を設定
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch((err) => {
+      console.error("セッション永続性エラー:", err);
     });
 
     // 認証状態の監視
     firebase.auth().onAuthStateChanged(async (user) => {
       if (user) {
-        // サインイン済みの場合：認証UIを非表示、メインアプリUIを表示
         document.getElementById("firebaseui-auth-container").style.display = "none";
         document.getElementById("loader").style.display = "none";
-        appContainer.style.display = "block";
-        await fetchAllProducts();
+        document.getElementById("app-container").style.display = "block";
       } else {
-        // 未認証の場合：メインアプリUIを非表示し、FirebaseUI 認証を開始
-        appContainer.style.display = "none";
-        // FirebaseUI 設定
-        const uiConfig = {
+        document.getElementById("app-container").style.display = "none";
+        const ui = firebaseui.auth.AuthUI.getInstance() || new firebaseui.auth.AuthUI(firebase.auth());
+        ui.start("#firebaseui-auth-container", {
           signInSuccessUrl: window.location.href,
-          signInOptions: [
-            firebase.auth.EmailAuthProvider.PROVIDER_ID
-          ],
+          signInOptions: [firebase.auth.EmailAuthProvider.PROVIDER_ID],
           callbacks: {
-            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
-              return false;
-            }
-          }
-        };
-        // FirebaseUI の初期化
-        const ui = new firebaseui.auth.AuthUI(firebase.auth());
-        ui.start('#firebaseui-auth-container', uiConfig);
+            signInSuccessWithAuthResult: (authResult, redirectUrl) => false,
+          },
+        });
       }
     });
+
+    // サインアウト処理
+    document.getElementById("sign-out-btn").addEventListener("click", () => {
+      auth.signOut().catch((err) => console.error("サインアウトエラー:", err));
+    });
+
+    // 検索処理
+    document.getElementById("searchBtn").addEventListener("click", async () => {
+      const keyword = document.getElementById("keywordInput").value.trim();
+      if (!keyword) return alert("検索キーワードを入力してください。");
+      try {
+        const snapshot = await db.collection("products").get();
+        const results = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if ((data.title && data.title.includes(keyword)) || (data.text && data.text.includes(keyword))) {
+            results.push({ id: doc.id, ...data });
+          }
+        });
+        displayResults(results);
+      } catch (err) {
+        console.error("検索エラー:", err);
+      }
+    });
+
+    // 検索結果表示
+    function displayResults(results) {
+      const resultsContainer = document.getElementById("results");
+      resultsContainer.innerHTML = "";
+      if (results.length === 0) {
+        resultsContainer.textContent = "該当する資料が見つかりません。";
+        return;
+      }
+      results.forEach((result) => {
+        const div = document.createElement("div");
+        div.textContent = `${result.title || "タイトルなし"}: ${result.text || "本文なし"}`;
+        resultsContainer.appendChild(div);
+      });
+    }
   </script>
 </body>
 </html>
