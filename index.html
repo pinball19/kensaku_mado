@@ -2,57 +2,67 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>サンプル検索サイト</title>
+  <title>内部資料検索＆更新システム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    /* 全体のボックスサイズを調整（パディングなどを含む） */
-    * {
-      box-sizing: border-box;
-    }
-    
+    /* 全体の基本スタイル */
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
-      line-height: 1.6;
       background-color: #f4f8fb;
       color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
     }
-    
-    /* h1 の日本語が途中で改行されないように */
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 10px;
+    }
     h1 {
       color: #0056b3;
-      margin-bottom: 30px;
-      word-break: keep-all;
+      text-align: center;
     }
-    
-    /* 検索フォーム */
-    .search-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      max-width: 600px;
-      margin-bottom: 30px;
-      /* 小さい画面でも横並びを維持 */
-      flex-wrap: nowrap;
+    .error-message {
+      color: red;
+      text-align: center;
+      margin: 10px 0;
     }
-    
-    /* 入力欄は固定幅ではなく、余ったスペースを利用 */
-    input[type="text"] {
+    /* 認証用タブとフォーム */
+    #auth-container {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    #auth-tabs {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      background-color: #eee;
+      border: none;
+      border-radius: 4px;
+      margin: 0 5px;
+      font-size: 1rem;
+    }
+    .tab.active {
+      background-color: #0056b3;
+      color: white;
+    }
+    .auth-form {
+      display: none;
+      text-align: center;
+    }
+    .auth-form input {
+      width: 80%;
       padding: 10px;
+      margin: 5px 0;
       font-size: 1rem;
       border: 1px solid #ccc;
       border-radius: 5px;
-      margin-right: 10px;
-      flex: 1;
-      min-width: 0;
     }
-    
-    /* ボタンが縮まないように設定 */
-    button {
+    .auth-form button {
       padding: 10px 20px;
       font-size: 1rem;
       background-color: #0056b3;
@@ -60,14 +70,34 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      transition: background-color 0.3s;
-      flex-shrink: 0;
     }
-    button:hover {
-      background-color: #003f8a;
+    /* メインアプリ用 */
+    #app-container {
+      display: none;
     }
-    
-    /* 結果表示エリア */
+    .search-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .search-container input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      font-size: 1rem;
+      margin-right: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .search-container button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background-color: #0056b3;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    /* 出力窓のデザイン（過去に記述したコード2と同じ） */
     .result-item {
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -87,170 +117,243 @@
       color: #555;
       white-space: pre-wrap;
     }
-    
-    .link-card {
-      background-color: #f4f8fb;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 10px;
-      margin: 10px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      text-decoration: none;
+    .result-item a {
       color: #0056b3;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      text-decoration: underline;
+      display: block;
+      margin-top: 10px;
     }
-    .link-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    .result-item a:hover {
+      color: #003f8a;
     }
-    .link-card-title {
-      font-size: 1rem;
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-    .link-card-url {
-      font-size: 0.9rem;
-      color: #555;
-      word-break: break-all;
-    }
-    
-    /* スマホなど小さい画面向けの調整 */
-    @media (max-width: 480px) {
-      .search-container {
-         padding: 0 10px;
-      }
-      button {
-         padding: 10px;
-      }
+    /* ローダー */
+    #loader {
+      text-align: center;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>サンプル検索サイト</h1>
-
-  <!-- 検索フォーム -->
-  <div class="search-container">
-    <input id="keywordInput" type="text" placeholder="テキストを入力（部分一致OK）" />
-    <button id="searchBtn">検索</button>
+  <!-- 認証用コンテナ -->
+  <div id="auth-container" class="container">
+    <div id="auth-tabs">
+      <button id="login-tab" class="tab active">ログイン</button>
+      <button id="signup-tab" class="tab">新規登録</button>
+    </div>
+    <!-- ログインフォーム -->
+    <div id="login-form" class="auth-form">
+      <input type="email" id="login-email" placeholder="メールアドレス" required />
+      <input type="password" id="login-password" placeholder="パスワード" required />
+      <button id="login-button">ログイン</button>
+      <div id="login-error" class="error-message"></div>
+    </div>
+    <!-- サインアップ（新規登録）フォーム -->
+    <div id="signup-form" class="auth-form" style="display:none;">
+      <input type="email" id="signup-email" placeholder="メールアドレス" required />
+      <input type="password" id="signup-password" placeholder="パスワード" required />
+      <input type="password" id="signup-password-confirm" placeholder="パスワード確認" required />
+      <button id="signup-button">新規登録</button>
+      <div id="signup-error" class="error-message"></div>
+    </div>
   </div>
 
-  <!-- 結果表示エリア -->
-  <div id="results"></div>
+  <!-- ローダー -->
+  <div id="loader">Loading...</div>
 
-  <!-- Firebase SDK (Firestore v9) をCDNから読み込み -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
+  <!-- メインアプリ用コンテナ -->
+  <div id="app-container" class="container">
+    <div style="text-align: right;">
+      <button id="sign-out-btn">Sign Out</button>
+    </div>
+    <h1>内部資料検索＆更新システム</h1>
+    <div class="search-container">
+      <input id="keywordInput" type="text" placeholder="検索キーワードを入力（部分一致）" />
+      <button id="searchBtn">検索</button>
+    </div>
+    <div id="errorContainer" class="error-message"></div>
+    <div id="results"></div>
+  </div>
 
-    // Firebaseの設定
+  <!-- Firebase compat SDK の読み込み -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore-compat.js"></script>
+  <script>
+    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
       projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
+      storageBucket: "slack-bot-firebase-7991a.appspot.com",
       messagingSenderId: "2155745043",
-      appId: "1:215585745c99c5066b56cd4566"
+      appId: "1:2155745043:web:123456abcdef"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    // Firebase 初期化
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
+    // DOM 要素の取得（認証フォーム）
+    const loginTab = document.getElementById("login-tab");
+    const signupTab = document.getElementById("signup-tab");
+    const loginForm = document.getElementById("login-form");
+    const signupForm = document.getElementById("signup-form");
+    const loginButton = document.getElementById("login-button");
+    const signupButton = document.getElementById("signup-button");
+    const loginErrorDiv = document.getElementById("login-error");
+    const signupErrorDiv = document.getElementById("signup-error");
+
+    // DOM 要素の取得（メインアプリ）
+    const appContainer = document.getElementById("app-container");
+    const signOutBtn = document.getElementById("sign-out-btn");
     const keywordInput = document.getElementById("keywordInput");
     const searchBtn = document.getElementById("searchBtn");
+    const errorContainer = document.getElementById("errorContainer");
     const resultsContainer = document.getElementById("results");
 
-    let allProducts = []; // Firestoreから取得したすべてのデータを保持
+    // ローダー
+    const loader = document.getElementById("loader");
 
-    // Firestoreの全データを取得してキャッシュ
+    // タブ切替処理
+    loginTab.addEventListener("click", () => {
+      loginTab.classList.add("active");
+      signupTab.classList.remove("active");
+      loginForm.style.display = "block";
+      signupForm.style.display = "none";
+    });
+    signupTab.addEventListener("click", () => {
+      signupTab.classList.add("active");
+      loginTab.classList.remove("active");
+      signupForm.style.display = "block";
+      loginForm.style.display = "none";
+    });
+
+    // ログイン処理
+    loginButton.addEventListener("click", async () => {
+      loginErrorDiv.textContent = "";
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      if (!email || !password) {
+        loginErrorDiv.textContent = "メールアドレスとパスワードを入力してください。";
+        return;
+      }
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (err) {
+        console.error("ログインエラー:", err);
+        loginErrorDiv.textContent = err.message;
+      }
+    });
+
+    // 新規登録処理
+    signupButton.addEventListener("click", async () => {
+      signupErrorDiv.textContent = "";
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value;
+      const passwordConfirm = document.getElementById("signup-password-confirm").value;
+      if (!email || !password || !passwordConfirm) {
+        signupErrorDiv.textContent = "すべての項目を入力してください。";
+        return;
+      }
+      if (password !== passwordConfirm) {
+        signupErrorDiv.textContent = "パスワードが一致しません。";
+        return;
+      }
+      try {
+        await auth.createUserWithEmailAndPassword(email, password);
+      } catch (err) {
+        console.error("新規登録エラー:", err);
+        signupErrorDiv.textContent = err.message;
+      }
+    });
+
+    // 認証状態の監視
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // 認証成功時：認証用コンテナは非表示、メインアプリを表示
+        document.getElementById("auth-container").style.display = "none";
+        loader.style.display = "none";
+        appContainer.style.display = "block";
+        fetchAllProducts();  // Firestore からデータを取得
+      } else {
+        // 未認証時：認証用コンテナを表示、メインアプリは非表示
+        document.getElementById("auth-container").style.display = "block";
+        appContainer.style.display = "none";
+      }
+    });
+
+    // サインアウト処理
+    signOutBtn.addEventListener("click", () => {
+      auth.signOut().catch((err) => console.error("サインアウトエラー:", err));
+    });
+
+    // Firestore データの取得・検索処理
+    let allProducts = [];
     async function fetchAllProducts() {
       try {
-        const snapshot = await getDocs(collection(db, "products"));
-        snapshot.forEach((doc) => {
-          allProducts.push({ id: doc.id, ...doc.data() });
-        });
+        const snapshot = await db.collection("products").get();
+        allProducts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       } catch (err) {
         console.error("データ取得エラー:", err);
+        errorContainer.textContent = "データ取得中にエラーが発生しました。";
       }
     }
 
-    // 検索ボタンがクリックされたとき
     searchBtn.addEventListener("click", () => {
+      errorContainer.textContent = "";
       const keyword = keywordInput.value.trim();
       if (!keyword) {
-        resultsContainer.innerHTML = `<p>検索キーワードを入力してください。</p>`;
+        errorContainer.textContent = "検索キーワードを入力してください。";
         return;
       }
-
-      // 部分一致でフィルタリング（「titleフィールド」と「textフィールド」を検索対象とする）
+      // 「titleフィールド」と「textフィールド」を検索対象に部分一致で抽出
       const matchedResults = allProducts.filter((data) =>
         (data.title && data.title.includes(keyword)) ||
         (data.text && data.text.includes(keyword))
       );
-
       displayResults(matchedResults);
     });
 
-    // 結果を表示する関数
+    // 出力窓の内容とデザイン（過去に記述したコード2と同じ）
     function displayResults(results) {
-      resultsContainer.innerHTML = ""; // 結果をクリア
-
+      resultsContainer.innerHTML = "";
       if (results.length === 0) {
-        resultsContainer.innerHTML = `<p>該当する商品が見つかりません。</p>`;
+        resultsContainer.innerHTML = "<p>該当する資料が見つかりません。</p>";
         return;
       }
-
       results.forEach((data) => {
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // 「titleフィールド」を表示する（もしtitleが無い場合はidを表示）
-        const titleHeading = document.createElement("h3");
-        titleHeading.textContent = data.title || data.id;
-        itemDiv.appendChild(titleHeading);
+        // ドキュメントIDまたは title を見出しとして表示
+        const docIdHeading = document.createElement("h3");
+        // 過去のコード2では docId を直接表示していますが、
+        // ここでは title がある場合は title、なければ id を表示
+        docIdHeading.textContent = data.title || data.id;
+        itemDiv.appendChild(docIdHeading);
 
         // 商品の説明 (textフィールド)
         if (data.text) {
           const descriptionP = document.createElement("p");
-          descriptionP.innerHTML = `説明: ${data.text.replace(/\n/g, "<br>")}`;
+          descriptionP.textContent = `説明: ${data.text}`;
           itemDiv.appendChild(descriptionP);
         }
 
-        // URLフィールド（url1～url3）とそのタイトル（url1_title～url3_title）のリンク生成
-        const urlFields = [
-          { url: data.url1, title: data.url1_title },
-          { url: data.url2, title: data.url2_title },
-          { url: data.url3, title: data.url3_title }
-        ].filter(field => field.url); // URLが存在するものだけフィルタ
-
-        urlFields.forEach(({ url, title }) => {
-          const linkCard = document.createElement("a");
-          linkCard.href = url;
-          linkCard.target = "_blank";
-          linkCard.rel = "noopener noreferrer";
-          linkCard.classList.add("link-card");
-
-          const linkTitle = document.createElement("div");
-          linkTitle.textContent = title || "タイトルなし";
-          linkTitle.classList.add("link-card-title");
-
-          const linkUrl = document.createElement("div");
-          linkUrl.textContent = url;
-          linkUrl.classList.add("link-card-url");
-
-          linkCard.appendChild(linkTitle);
-          linkCard.appendChild(linkUrl);
-          itemDiv.appendChild(linkCard);
+        // URLフィールド（url1～url3）のリンク生成
+        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
+        urlFields.forEach((url, index) => {
+          const linkEl = document.createElement("a");
+          linkEl.href = url;
+          linkEl.target = "_blank";
+          linkEl.rel = "noopener noreferrer";
+          linkEl.textContent = `関連リンク${index + 1}`;
+          itemDiv.appendChild(linkEl);
         });
 
-        // 結果エリアに挿入
         resultsContainer.appendChild(itemDiv);
       });
     }
-
-    // 初回ロード時にデータを取得
-    fetchAllProducts();
   </script>
 </body>
 </html>
