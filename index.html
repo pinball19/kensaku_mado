@@ -97,7 +97,7 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    /* 出力窓のデザイン：過去に記述したコード3と同じ */
+    /* 出力窓のデザイン：過去に記述したコード4と同じ */
     .result-item {
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -117,14 +117,32 @@
       color: #555;
       white-space: pre-wrap;
     }
-    .result-item a {
+    .link-card {
+      background-color: #f4f8fb;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-decoration: none;
       color: #0056b3;
-      text-decoration: underline;
-      display: block;
-      margin-top: 10px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .result-item a:hover {
-      color: #003f8a;
+    .link-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .link-card-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .link-card-url {
+      font-size: 0.9rem;
+      color: #555;
+      word-break: break-all;
     }
     /* ローダー */
     #loader {
@@ -190,12 +208,12 @@
   <script>
     // Firebase 設定
     const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
+      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
       projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-      messagingSenderId: "215585745043",
-      appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
+      storageBucket: "slack-bot-firebase-7991a.appspot.com",
+      messagingSenderId: "2155745043",
+      appId: "1:2155745043:web:123456abcdef"
     };
 
     // Firebase 初期化
@@ -324,18 +342,20 @@
       displayResults(matchedResults);
     });
 
-    // 出力窓の内容とデザインを「過去に記述したコード3」と同じにする displayResults 関数
+    // 出力窓の内容とデザインを「過去に記述したコード4」と同じにする displayResults 関数
     function displayResults(results) {
       resultsContainer.innerHTML = ""; // 結果をクリア
+
       if (results.length === 0) {
         resultsContainer.innerHTML = "<p>該当する資料が見つかりません。</p>";
         return;
       }
+
       results.forEach((data) => {
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // ドキュメントIDを表示（ここでは data.id を表示）
+        // ドキュメントIDの表示（data.id を表示）
         const docIdHeading = document.createElement("h3");
         docIdHeading.textContent = data.id;
         itemDiv.appendChild(docIdHeading);
@@ -347,21 +367,39 @@
           itemDiv.appendChild(descriptionP);
         }
 
-        // URLフィールド（url1～url3）のリンク生成
-        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
-        urlFields.forEach((url, index) => {
-          const linkEl = document.createElement("a");
-          linkEl.href = url;
-          linkEl.target = "_blank";
-          linkEl.rel = "noopener noreferrer";
-          linkEl.textContent = `関連リンク${index + 1}`;
-          itemDiv.appendChild(linkEl);
+        // URLフィールド（url1～url3）とそのタイトル（url1_title～url3_title）のリンク生成（カードスタイル）
+        const urlFields = [
+          { url: data.url1, title: data.url1_title },
+          { url: data.url2, title: data.url2_title },
+          { url: data.url3, title: data.url3_title }
+        ].filter(field => field.url);
+
+        urlFields.forEach(({ url, title }) => {
+          const linkCard = document.createElement("a");
+          linkCard.href = url;
+          linkCard.target = "_blank";
+          linkCard.rel = "noopener noreferrer";
+          linkCard.classList.add("link-card");
+
+          const linkTitle = document.createElement("div");
+          linkTitle.textContent = title || "タイトルなし";
+          linkTitle.classList.add("link-card-title");
+
+          const linkUrl = document.createElement("div");
+          linkUrl.textContent = url;
+          linkUrl.classList.add("link-card-url");
+
+          linkCard.appendChild(linkTitle);
+          linkCard.appendChild(linkUrl);
+          itemDiv.appendChild(linkCard);
         });
 
-        // 結果エリアに挿入
         resultsContainer.appendChild(itemDiv);
       });
     }
+
+    // 初回ロード時にデータを取得
+    fetchAllProducts();
   </script>
 </body>
 </html>
