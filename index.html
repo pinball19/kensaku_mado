@@ -98,12 +98,31 @@
       cursor: pointer;
     }
     .result-item {
-      background-color: #fff;
       border: 1px solid #ccc;
       border-radius: 8px;
       padding: 20px;
-      margin-bottom: 15px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin: 15px 0;
+      background-color: #ffffff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 600px;
+    }
+    .result-item h3 {
+      margin-top: 0;
+      color: #0056b3;
+    }
+    .result-item p {
+      margin: 5px 0;
+      color: #555;
+    }
+    .result-item a {
+      color: #0056b3;
+      text-decoration: underline;
+      display: block;
+      margin-top: 10px;
+    }
+    .result-item a:hover {
+      color: #003f8a;
     }
     /* ローダー */
     #loader {
@@ -160,12 +179,12 @@
   <script>
     // Firebase 設定
     const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
+      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
       projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-      messagingSenderId: "215585745043",
-      appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
+      storageBucket: "slack-bot-firebase-7991a.appspot.com",
+      messagingSenderId: "2155745043",
+      appId: "1:2155745043:web:123456abcdef"
     };
 
     // Firebase 初期化
@@ -294,7 +313,7 @@
       displayResults(matchedResults);
     });
 
-    // 出力内容とデザインの修正：下記のコードと同じように出力する
+    // 出力窓の内容・デザインを過去のコードと同様にする displayResults 関数
     function displayResults(results) {
       resultsContainer.innerHTML = "";
       if (results.length === 0) {
