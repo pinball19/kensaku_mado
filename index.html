@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <title>内部資料検索＆更新システム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.css" />
   <style>
+    /* 全体の基本スタイル */
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
@@ -15,34 +15,54 @@
     .container {
       max-width: 600px;
       margin: auto;
+      padding: 10px;
     }
     h1 {
       color: #0056b3;
       text-align: center;
     }
-    #firebaseui-auth-container {
-      max-width: 400px;
-      margin: auto;
-    }
-    .sign-in-notice {
+    .error-message {
+      color: red;
       text-align: center;
       margin: 10px 0;
-      color: green;
     }
-    .search-container {
-      display: flex;
-      align-items: center;
+    /* 認証用タブとフォーム */
+    #auth-container {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
       margin-bottom: 20px;
     }
-    input[type="text"] {
-      flex: 1;
-      padding: 10px;
+    #auth-tabs {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      background-color: #eee;
+      border: none;
+      border-radius: 4px;
+      margin: 0 5px;
       font-size: 1rem;
-      margin-right: 10px;
+    }
+    .tab.active {
+      background-color: #0056b3;
+      color: white;
+    }
+    .auth-form {
+      display: none;
+      text-align: center;
+    }
+    .auth-form input {
+      width: 80%;
+      padding: 10px;
+      margin: 5px 0;
+      font-size: 1rem;
       border: 1px solid #ccc;
       border-radius: 5px;
     }
-    button {
+    .auth-form button {
       padding: 10px 20px;
       font-size: 1rem;
       background-color: #0056b3;
@@ -51,8 +71,31 @@
       border-radius: 5px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #003f8a;
+    /* メインアプリ用 */
+    #app-container {
+      display: none;
+    }
+    .search-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .search-container input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      font-size: 1rem;
+      margin-right: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .search-container button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background-color: #0056b3;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
     .result-item {
       background-color: #fff;
@@ -60,22 +103,44 @@
       border-radius: 8px;
       padding: 20px;
       margin-bottom: 15px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .error-message {
-      color: red;
+    /* ローダー */
+    #loader {
       text-align: center;
-      margin: 10px 0;
+      display: none;
     }
   </style>
 </head>
 <body>
   <!-- 認証用コンテナ -->
-  <div id="firebaseui-auth-container"></div>
-  <div id="loader" style="text-align:center;">Loading...</div>
+  <div id="auth-container" class="container">
+    <div id="auth-tabs">
+      <button id="login-tab" class="tab active">ログイン</button>
+      <button id="signup-tab" class="tab">新規登録</button>
+    </div>
+    <!-- ログインフォーム -->
+    <div id="login-form" class="auth-form">
+      <input type="email" id="login-email" placeholder="メールアドレス" required />
+      <input type="password" id="login-password" placeholder="パスワード" required />
+      <button id="login-button">ログイン</button>
+      <div id="login-error" class="error-message"></div>
+    </div>
+    <!-- サインアップ（新規登録）フォーム -->
+    <div id="signup-form" class="auth-form" style="display:none;">
+      <input type="email" id="signup-email" placeholder="メールアドレス" required />
+      <input type="password" id="signup-password" placeholder="パスワード" required />
+      <input type="password" id="signup-password-confirm" placeholder="パスワード確認" required />
+      <button id="signup-button">新規登録</button>
+      <div id="signup-error" class="error-message"></div>
+    </div>
+  </div>
+
+  <!-- ローダー -->
+  <div id="loader">Loading...</div>
 
   <!-- メインアプリ用コンテナ -->
-  <div id="app-container" class="container" style="display:none;">
+  <div id="app-container" class="container">
     <div style="text-align: right;">
       <button id="sign-out-btn">Sign Out</button>
     </div>
@@ -88,10 +153,10 @@
     <div id="results"></div>
   </div>
 
+  <!-- Firebase compat SDK の読み込み -->
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.js"></script>
   <script>
     // Firebase 設定
     const firebaseConfig = {
@@ -103,76 +168,128 @@
       appId: "1:2155745043:web:123456abcdef"
     };
 
+    // Firebase 初期化
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
     const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // DOM 要素の取得（認証フォーム）
+    const loginTab = document.getElementById("login-tab");
+    const signupTab = document.getElementById("signup-tab");
+    const loginForm = document.getElementById("login-form");
+    const signupForm = document.getElementById("signup-form");
+    const loginButton = document.getElementById("login-button");
+    const signupButton = document.getElementById("signup-button");
+    const loginErrorDiv = document.getElementById("login-error");
+    const signupErrorDiv = document.getElementById("signup-error");
+
+    // DOM 要素の取得（メインアプリ）
+    const appContainer = document.getElementById("app-container");
+    const signOutBtn = document.getElementById("sign-out-btn");
+    const keywordInput = document.getElementById("keywordInput");
+    const searchBtn = document.getElementById("searchBtn");
+    const errorContainer = document.getElementById("errorContainer");
+    const resultsContainer = document.getElementById("results");
+
+    // ローダー
+    const loader = document.getElementById("loader");
+
+    // タブ切替処理
+    loginTab.addEventListener("click", () => {
+      loginTab.classList.add("active");
+      signupTab.classList.remove("active");
+      loginForm.style.display = "block";
+      signupForm.style.display = "none";
+    });
+    signupTab.addEventListener("click", () => {
+      signupTab.classList.add("active");
+      loginTab.classList.remove("active");
+      signupForm.style.display = "block";
+      loginForm.style.display = "none";
+    });
+
+    // ログイン処理
+    loginButton.addEventListener("click", async () => {
+      loginErrorDiv.textContent = "";
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      if (!email || !password) {
+        loginErrorDiv.textContent = "メールアドレスとパスワードを入力してください。";
+        return;
+      }
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (err) {
+        console.error("ログインエラー:", err);
+        loginErrorDiv.textContent = err.message;
+      }
+    });
+
+    // 新規登録処理
+    signupButton.addEventListener("click", async () => {
+      signupErrorDiv.textContent = "";
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value;
+      const passwordConfirm = document.getElementById("signup-password-confirm").value;
+      if (!email || !password || !passwordConfirm) {
+        signupErrorDiv.textContent = "すべての項目を入力してください。";
+        return;
+      }
+      if (password !== passwordConfirm) {
+        signupErrorDiv.textContent = "パスワードが一致しません。";
+        return;
+      }
+      try {
+        await auth.createUserWithEmailAndPassword(email, password);
+      } catch (err) {
+        console.error("新規登録エラー:", err);
+        signupErrorDiv.textContent = err.message;
+      }
+    });
 
     // 認証状態の監視
-    firebase.auth().onAuthStateChanged(async (user) => {
+    auth.onAuthStateChanged((user) => {
       if (user) {
-        document.getElementById("firebaseui-auth-container").style.display = "block";
-        document.getElementById("loader").style.display = "none";
-        document.getElementById("app-container").style.display = "none";
-
-        // サインイン済みの通知
-        const notice = document.createElement("p");
-        notice.textContent = "既にサインイン済みです。再ログインするにはサインアウトしてください。";
-        notice.classList.add("sign-in-notice");
-        const authContainer = document.getElementById("firebaseui-auth-container");
-        if (!authContainer.contains(notice)) authContainer.appendChild(notice);
+        // 認証成功時：認証用コンテナは非表示、メインアプリを表示
+        document.getElementById("auth-container").style.display = "none";
+        loader.style.display = "none";
+        appContainer.style.display = "block";
+        fetchAllProducts();  // Firestore からデータを取得
       } else {
-        document.getElementById("firebaseui-auth-container").style.display = "block";
-        document.getElementById("app-container").style.display = "none";
-
-        // FirebaseUI 設定
-        const uiConfig = {
-          signInSuccessUrl: window.location.href,
-          signInOptions: [firebase.auth.EmailAuthProvider.PROVIDER_ID],
-          callbacks: {
-            signInSuccessWithAuthResult: (authResult, redirectUrl) => false,
-          },
-        };
-
-        const ui = firebaseui.auth.AuthUI.getInstance() || new firebaseui.auth.AuthUI(firebase.auth());
-        ui.start("#firebaseui-auth-container", uiConfig);
+        // 未認証時：認証用コンテナを表示、メインアプリは非表示
+        document.getElementById("auth-container").style.display = "block";
+        appContainer.style.display = "none";
       }
     });
 
     // サインアウト処理
-    document.getElementById("sign-out-btn").addEventListener("click", () => {
+    signOutBtn.addEventListener("click", () => {
       auth.signOut().catch((err) => console.error("サインアウトエラー:", err));
     });
 
-    // Firestore データの取得と検索
-    const keywordInput = document.getElementById("keywordInput");
-    const searchBtn = document.getElementById("searchBtn");
-    const resultsContainer = document.getElementById("results");
-    const errorContainer = document.getElementById("errorContainer");
-
-    let allProducts = []; // Firestoreのデータキャッシュ
-
+    // Firestore データの取得・検索処理
+    let allProducts = [];
     async function fetchAllProducts() {
       try {
         const snapshot = await db.collection("products").get();
         allProducts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       } catch (err) {
         console.error("データ取得エラー:", err);
-        displayError("データ取得中にエラーが発生しました。");
+        errorContainer.textContent = "データ取得中にエラーが発生しました。";
       }
     }
 
     searchBtn.addEventListener("click", () => {
+      errorContainer.textContent = "";
       const keyword = keywordInput.value.trim();
       if (!keyword) {
-        displayError("検索キーワードを入力してください。");
+        errorContainer.textContent = "検索キーワードを入力してください。";
         return;
       }
-
       const matchedResults = allProducts.filter((data) =>
         (data.title && data.title.includes(keyword)) ||
         (data.text && data.text.includes(keyword))
       );
-
       displayResults(matchedResults);
     });
 
@@ -182,28 +299,18 @@
         resultsContainer.innerHTML = "<p>該当する資料が見つかりません。</p>";
         return;
       }
-
       results.forEach((data) => {
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
-
         const titleElement = document.createElement("p");
         titleElement.textContent = data.title || "タイトルなし";
         itemDiv.appendChild(titleElement);
-
         const textElement = document.createElement("p");
         textElement.textContent = data.text || "説明なし";
         itemDiv.appendChild(textElement);
-
         resultsContainer.appendChild(itemDiv);
       });
     }
-
-    function displayError(message) {
-      errorContainer.textContent = message;
-    }
-
-    fetchAllProducts();
   </script>
 </body>
 </html>
