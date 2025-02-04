@@ -2,56 +2,43 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>★サンプル検索サイト★</title>
+  <title>内部資料検索＆更新システム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- FirebaseUI CSS -->
+  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.css" />
   <style>
-    /* 全体のボックスサイズを調整（パディングなどを含む） */
+    /* 基本スタイル */
     * {
       box-sizing: border-box;
     }
-    
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
-      line-height: 1.6;
       background-color: #f4f8fb;
       color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
     }
-    
-    /* h1 の日本語が途中で改行されないように */
+    .container {
+      max-width: 600px;
+      margin: auto;
+    }
     h1 {
       color: #0056b3;
-      margin-bottom: 30px;
       word-break: keep-all;
+      text-align: center;
     }
-    
-    /* 検索フォーム */
     .search-container {
       display: flex;
       align-items: center;
-      justify-content: center;
-      width: 100%;
-      max-width: 600px;
-      margin-bottom: 30px;
-      /* 小さい画面でも横並びを維持 */
-      flex-wrap: nowrap;
+      margin-bottom: 20px;
     }
-    
-    /* 入力欄は固定幅ではなく、余ったスペースを利用 */
     input[type="text"] {
+      flex: 1;
       padding: 10px;
       font-size: 1rem;
+      margin-right: 10px;
       border: 1px solid #ccc;
       border-radius: 5px;
-      margin-right: 10px;
-      flex: 1;
-      min-width: 0;
     }
-    
-    /* ボタンが縮まないように設定 */
     button {
       padding: 10px 20px;
       font-size: 1rem;
@@ -60,91 +47,70 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      transition: background-color 0.3s;
-      flex-shrink: 0;
     }
     button:hover {
       background-color: #003f8a;
     }
-    
-    /* 結果表示エリア */
     .result-item {
+      background-color: #fff;
       border: 1px solid #ccc;
       border-radius: 8px;
       padding: 20px;
-      margin: 15px 0;
-      background-color: #ffffff;
+      margin-bottom: 15px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .result-item input[type="text"],
+    .result-item textarea {
       width: 100%;
-      max-width: 600px;
-    }
-    .result-item h3 {
-      margin-top: 0;
-      color: #0056b3;
-    }
-    .result-item p {
-      margin: 5px 0;
-      color: #555;
-      white-space: pre-wrap;
-    }
-    
-    .link-card {
-      background-color: #f4f8fb;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 10px;
-      margin: 10px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      text-decoration: none;
-      color: #0056b3;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .link-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    .link-card-title {
+      padding: 8px;
       font-size: 1rem;
-      font-weight: bold;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
     }
-    .link-card-url {
-      font-size: 0.9rem;
-      color: #555;
-      word-break: break-all;
+    .error-message {
+      color: red;
+      margin-bottom: 10px;
+      text-align: center;
     }
-    
-    /* スマホなど小さい画面向けの調整 */
-    @media (max-width: 480px) {
-      .search-container {
-         padding: 0 10px;
-      }
-      button {
-         padding: 10px;
-      }
+    .signout-container {
+      text-align: right;
+      margin-bottom: 10px;
+    }
+    /* FirebaseUI の認証画面用 */
+    #firebaseui-auth-container {
+      max-width: 400px;
+      margin: auto;
     }
   </style>
 </head>
 <body>
-  <h1>★サンプル検索サイト★</h1>
+  <!-- 認証用コンテナ -->
+  <div id="firebaseui-auth-container"></div>
+  <div id="loader" style="text-align:center;">Loading...</div>
 
-  <!-- 検索フォーム -->
-  <div class="search-container">
-    <input id="keywordInput" type="text" placeholder="テキストを入力（部分一致OK）" />
-    <button id="searchBtn">検索</button>
+  <!-- メインアプリ用コンテナ（認証後に表示） -->
+  <div id="app-container" class="container" style="display:none;">
+    <div class="signout-container">
+      <button id="sign-out-btn">Sign Out</button>
+    </div>
+    <h1>内部資料検索＆更新システム</h1>
+    <div class="search-container">
+      <input id="keywordInput" type="text" placeholder="検索キーワードを入力（部分一致）" />
+      <button id="searchBtn">検索</button>
+    </div>
+    <div id="errorContainer" class="error-message"></div>
+    <div id="results"></div>
   </div>
 
-  <!-- 結果表示エリア -->
-  <div id="results"></div>
-
-  <!-- Firebase SDK (Firestore v9) をCDNから読み込み -->
+  <!-- Firebase SDK モジュール -->
   <script type="module">
+    // Firebase モジュールのインポート
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.17.2/firebase-auth.js";
 
-    // Firebaseの設定
+    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
@@ -154,50 +120,51 @@
       appId: "1:215585745c99c5066b56cd4566"
     };
 
+    // 初期化
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
 
+    // DOM 要素の取得
     const keywordInput = document.getElementById("keywordInput");
     const searchBtn = document.getElementById("searchBtn");
     const resultsContainer = document.getElementById("results");
+    const errorContainer = document.getElementById("errorContainer");
+    const signOutBtn = document.getElementById("sign-out-btn");
+    const appContainer = document.getElementById("app-container");
 
-    let allProducts = []; // Firestoreから取得したすべてのデータを保持
+    // 全資料データをキャッシュするための変数
+    let allProducts = [];
 
-    // Firestoreの全データを取得してキャッシュ
+    // エラーメッセージ表示
+    function displayError(message) {
+      errorContainer.textContent = message;
+    }
+
+    // エラークリア
+    function clearError() {
+      errorContainer.textContent = "";
+    }
+
+    // Firestore から全資料を取得
     async function fetchAllProducts() {
       try {
         const snapshot = await getDocs(collection(db, "products"));
-        snapshot.forEach((doc) => {
-          allProducts.push({ id: doc.id, ...doc.data() });
+        allProducts = [];
+        snapshot.forEach((docSnap) => {
+          allProducts.push({ id: docSnap.id, ...docSnap.data() });
         });
       } catch (err) {
         console.error("データ取得エラー:", err);
+        displayError("データ取得中にエラーが発生しました。");
       }
     }
 
-    // 検索ボタンがクリックされたとき
-    searchBtn.addEventListener("click", () => {
-      const keyword = keywordInput.value.trim();
-      if (!keyword) {
-        resultsContainer.innerHTML = `<p>検索キーワードを入力してください。</p>`;
-        return;
-      }
-
-      // 部分一致でフィルタリング（「titleフィールド」と「textフィールド」を検索対象とする）
-      const matchedResults = allProducts.filter((data) =>
-        (data.title && data.title.includes(keyword)) ||
-        (data.text && data.text.includes(keyword))
-      );
-
-      displayResults(matchedResults);
-    });
-
-    // 結果を表示する関数
+    // 検索結果を表示し、インライン編集UIを提供
     function displayResults(results) {
-      resultsContainer.innerHTML = ""; // 結果をクリア
-
+      resultsContainer.innerHTML = "";
       if (results.length === 0) {
-        resultsContainer.innerHTML = `<p>該当する商品が見つかりません。</p>`;
+        resultsContainer.innerHTML = "<p>該当する資料が見つかりません。</p>";
         return;
       }
 
@@ -205,52 +172,116 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // 「titleフィールド」を表示する（もしtitleが無い場合はidを表示）
-        const titleHeading = document.createElement("h3");
-        titleHeading.textContent = data.title || data.id;
-        itemDiv.appendChild(titleHeading);
+        // タイトル編集用 input（必須、3文字以上）
+        const titleInput = document.createElement("input");
+        titleInput.type = "text";
+        titleInput.value = data.title || "";
+        titleInput.placeholder = "タイトル（3文字以上）";
+        itemDiv.appendChild(titleInput);
 
-        // 商品の説明 (textフィールド)
-        if (data.text) {
-          const descriptionP = document.createElement("p");
-          descriptionP.innerHTML = `説明: ${data.text.replace(/\n/g, "<br>")}`;
-          itemDiv.appendChild(descriptionP);
-        }
+        // 本文編集用 textarea
+        const textArea = document.createElement("textarea");
+        textArea.value = data.text || "";
+        textArea.placeholder = "本文を入力";
+        itemDiv.appendChild(textArea);
 
-        // URLフィールド（url1～url3）とそのタイトル（url1_title～url3_title）のリンク生成
-        const urlFields = [
-          { url: data.url1, title: data.url1_title },
-          { url: data.url2, title: data.url2_title },
-          { url: data.url3, title: data.url3_title }
-        ].filter(field => field.url); // URLが存在するものだけフィルタ
-
-        urlFields.forEach(({ url, title }) => {
-          const linkCard = document.createElement("a");
-          linkCard.href = url;
-          linkCard.target = "_blank";
-          linkCard.rel = "noopener noreferrer";
-          linkCard.classList.add("link-card");
-
-          const linkTitle = document.createElement("div");
-          linkTitle.textContent = title || "タイトルなし";
-          linkTitle.classList.add("link-card-title");
-
-          const linkUrl = document.createElement("div");
-          linkUrl.textContent = url;
-          linkUrl.classList.add("link-card-url");
-
-          linkCard.appendChild(linkTitle);
-          linkCard.appendChild(linkUrl);
-          itemDiv.appendChild(linkCard);
+        // 保存ボタン（更新処理、エラーハンドリング、データ検証付き）
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "保存";
+        saveButton.style.marginRight = "10px";
+        saveButton.addEventListener("click", async () => {
+          clearError();
+          // データ検証
+          if (!titleInput.value || titleInput.value.trim().length < 3) {
+            displayError("タイトルは3文字以上で入力してください。");
+            return;
+          }
+          // Firestore 更新処理
+          const docRef = doc(db, "products", data.id);
+          try {
+            await updateDoc(docRef, {
+              title: titleInput.value.trim(),
+              text: textArea.value.trim()
+            });
+            alert("更新に成功しました。");
+          } catch (err) {
+            console.error("更新エラー:", err);
+            displayError("更新中にエラーが発生しました。再度お試しください。");
+          }
         });
+        itemDiv.appendChild(saveButton);
 
-        // 結果エリアに挿入
+        // キャンセルボタン（再読み込みによって最新状態に戻す）
+        const cancelButton = document.createElement("button");
+        cancelButton.textContent = "キャンセル";
+        cancelButton.addEventListener("click", async () => {
+          await fetchAllProducts();
+          searchBtn.click();
+        });
+        itemDiv.appendChild(cancelButton);
+
         resultsContainer.appendChild(itemDiv);
       });
     }
 
-    // 初回ロード時にデータを取得
-    fetchAllProducts();
+    // 検索処理
+    searchBtn.addEventListener("click", async () => {
+      clearError();
+      const keyword = keywordInput.value.trim();
+      if (!keyword) {
+        displayError("検索キーワードを入力してください。");
+        return;
+      }
+      // タイトルまたは本文に部分一致する資料を抽出
+      const matchedResults = allProducts.filter((data) =>
+        (data.title && data.title.includes(keyword)) ||
+        (data.text && data.text.includes(keyword))
+      );
+      displayResults(matchedResults);
+    });
+
+    // サインアウト処理
+    signOutBtn.addEventListener("click", () => {
+      signOut(auth).catch((err) => {
+        console.error("サインアウトエラー:", err);
+      });
+    });
+
+    // 認証状態の監視
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // サインイン済みの場合：認証UIを非表示、メインアプリUIを表示
+        document.getElementById("firebaseui-auth-container").style.display = "none";
+        document.getElementById("loader").style.display = "none";
+        appContainer.style.display = "block";
+        await fetchAllProducts();
+      } else {
+        // 未認証の場合：メインアプリUIを非表示し、FirebaseUI 認証を開始
+        appContainer.style.display = "none";
+        // FirebaseUI 設定
+        const uiConfig = {
+          signInSuccessUrl: window.location.href,
+          signInOptions: [
+            // Email／パスワード認証（他の認証プロバイダも追加可能）
+            {
+              provider: 'password',
+              requireDisplayName: true
+            }
+          ],
+          callbacks: {
+            signInSuccessWithAuthResult: function(authResult, redirectUrl) {
+              // 自動リダイレクトを防ぎ、onAuthStateChangedで処理する
+              return false;
+            }
+          }
+        };
+        // FirebaseUI は CDN で読み込んだグローバル変数 firebaseui を利用
+        const ui = new firebaseui.auth.AuthUI(auth);
+        ui.start('#firebaseui-auth-container', uiConfig);
+      }
+    });
   </script>
+  <!-- FirebaseUI JS (CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/ui/6.0.2/firebase-ui-auth.js"></script>
 </body>
 </html>
