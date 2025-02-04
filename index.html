@@ -160,12 +160,12 @@
   <script>
     // Firebase 設定
     const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
+      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
       projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.firebasestorage.app",
-      messagingSenderId: "215585745043",
-      appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
+      storageBucket: "slack-bot-firebase-7991a.appspot.com",
+      messagingSenderId: "2155745043",
+      appId: "1:2155745043:web:123456abcdef"
     };
 
     // Firebase 初期化
@@ -286,6 +286,7 @@
         errorContainer.textContent = "検索キーワードを入力してください。";
         return;
       }
+      // タイトルまたは本文に部分一致する資料を抽出
       const matchedResults = allProducts.filter((data) =>
         (data.title && data.title.includes(keyword)) ||
         (data.text && data.text.includes(keyword))
@@ -293,6 +294,7 @@
       displayResults(matchedResults);
     });
 
+    // 出力内容とデザインの修正：下記のコードと同じように出力する
     function displayResults(results) {
       resultsContainer.innerHTML = "";
       if (results.length === 0) {
@@ -302,12 +304,31 @@
       results.forEach((data) => {
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
-        const titleElement = document.createElement("p");
-        titleElement.textContent = data.title || "タイトルなし";
-        itemDiv.appendChild(titleElement);
-        const textElement = document.createElement("p");
-        textElement.textContent = data.text || "説明なし";
-        itemDiv.appendChild(textElement);
+
+        // ドキュメントID（data.id を利用）
+        const docIdHeading = document.createElement("h3");
+        docIdHeading.textContent = data.id;
+        itemDiv.appendChild(docIdHeading);
+
+        // 商品の説明 (textフィールド)
+        if (data.text) {
+          const descriptionP = document.createElement("p");
+          descriptionP.textContent = `説明: ${data.text}`;
+          itemDiv.appendChild(descriptionP);
+        }
+
+        // URLフィールド（url1～url3）のリンク生成
+        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
+        urlFields.forEach((url, index) => {
+          const linkEl = document.createElement("a");
+          linkEl.href = url;
+          linkEl.target = "_blank";
+          linkEl.rel = "noopener noreferrer";
+          linkEl.textContent = `関連リンク${index + 1}`;
+          itemDiv.appendChild(linkEl);
+        });
+
+        // 結果エリアに挿入
         resultsContainer.appendChild(itemDiv);
       });
     }
