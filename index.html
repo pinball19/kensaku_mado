@@ -71,12 +71,15 @@
       color: #555;
       white-space: pre-wrap;
     }
-    .result-item input[type="number"] {
+    .action-row {
+      margin-top: 10px;
+    }
+    .action-row input[type="number"] {
       width: 60px;
       margin: 0 10px;
       padding: 5px;
     }
-    .result-item button {
+    .action-row button {
       padding: 5px 10px;
       margin: 0 5px;
       font-size: 0.9rem;
@@ -87,7 +90,7 @@
 <body>
   <div class="container">
     <h1>在庫管理システム</h1>
-    
+
     <div class="search-container">
       <input id="keywordInput" type="text" placeholder="検索キーワードを入力" />
       <button id="searchBtn">検索</button>
@@ -191,16 +194,15 @@
         stock.textContent = `在庫数: ${product.stock || 0}`;
         itemDiv.appendChild(stock);
 
-        // -----------------------------
-        // 在庫追加用：入力フィールドとボタン
-        // -----------------------------
+        // --- 在庫追加欄 ---
+        const addRow = document.createElement("div");
+        addRow.classList.add("action-row");
+
         const addInput = document.createElement("input");
         addInput.type = "number";
         addInput.value = 1;
         addInput.min = 1;
-        addInput.style.width = "60px";
-        addInput.style.marginRight = "5px";
-        itemDiv.appendChild(addInput);
+        addRow.appendChild(addInput);
 
         const increaseButton = document.createElement("button");
         increaseButton.textContent = "在庫追加";
@@ -212,19 +214,19 @@
           }
           updateStock(productId, (product.stock || 0) + quantity);
         });
-        itemDiv.appendChild(increaseButton);
+        addRow.appendChild(increaseButton);
 
-        // -----------------------------
-        // 在庫減少用：入力フィールドとボタン
-        // -----------------------------
+        itemDiv.appendChild(addRow);
+
+        // --- 在庫減少欄（1段下に配置） ---
+        const subtractRow = document.createElement("div");
+        subtractRow.classList.add("action-row");
+
         const subtractInput = document.createElement("input");
         subtractInput.type = "number";
         subtractInput.value = 1;
         subtractInput.min = 1;
-        subtractInput.style.width = "60px";
-        subtractInput.style.marginLeft = "15px";
-        subtractInput.style.marginRight = "5px";
-        itemDiv.appendChild(subtractInput);
+        subtractRow.appendChild(subtractInput);
 
         const decreaseButton = document.createElement("button");
         decreaseButton.textContent = "在庫減少";
@@ -236,7 +238,9 @@
           }
           updateStock(productId, Math.max((product.stock || 0) - quantity, 0));
         });
-        itemDiv.appendChild(decreaseButton);
+        subtractRow.appendChild(decreaseButton);
+
+        itemDiv.appendChild(subtractRow);
 
         resultsContainer.appendChild(itemDiv);
       }
