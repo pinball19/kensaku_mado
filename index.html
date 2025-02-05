@@ -48,12 +48,6 @@
       cursor: pointer;
       flex-shrink: 0;
     }
-    #video-preview {
-      width: 100%;
-      max-height: 300px;
-      display: none;
-      border-radius: 8px;
-    }
     .result-item {
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -71,6 +65,14 @@
       color: #555;
       white-space: pre-wrap;
     }
+    .stock-input {
+      width: 50px;
+      padding: 5px;
+      margin: 5px;
+      text-align: center;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
   </style>
 </head>
 <body>
@@ -82,8 +84,6 @@
       <button id="searchBtn">検索</button>
       <button id="scanBtn">スキャン</button>
     </div>
-
-    <video id="video-preview" autoplay></video>
 
     <div id="errorContainer" class="error-message"></div>
     <div id="results"></div>
@@ -112,7 +112,6 @@
       const searchBtn = document.getElementById("searchBtn");
       const scanBtn = document.getElementById("scanBtn");
       const keywordInput = document.getElementById("keywordInput");
-      const video = document.getElementById("video-preview");
       const resultsContainer = document.getElementById("results");
 
       // 🔹 検索ボタンのクリック処理（手入力）
@@ -123,25 +122,6 @@
           return;
         }
         searchProduct(keyword);
-      });
-
-      // 🔹 スキャンボタンのクリック処理（バーコード検索）
-      scanBtn.addEventListener("click", async () => {
-        try {
-          video.style.display = "block";
-          const codeReader = new ZXing.BrowserBarcodeReader();
-          
-          codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
-            if (result) {
-              keywordInput.value = result.text;
-              searchProduct(result.text); // 🔹 Firestore検索
-              codeReader.reset();
-              video.style.display = "none";
-            }
-          });
-        } catch (error) {
-          alert("カメラを使用できません：" + error.message);
-        }
       });
 
       // 🔹 Firestore検索処理（手入力 or バーコード）
@@ -180,14 +160,27 @@
         stock.textContent = `在庫数: ${product.stock || 0}`;
         itemDiv.appendChild(stock);
 
+        const stockInput = document.createElement("input");
+        stockInput.type = "number";
+        stockInput.min = "1";
+        stockInput.value = "1";
+        stockInput.classList.add("stock-input");
+        itemDiv.appendChild(stockInput);
+
         const increaseButton = document.createElement("button");
-        increaseButton.textContent = "在庫を追加";
-        increaseButton.addEventListener("click", () => updateStock(productId, product.stock + 1));
+        increaseButton.textContent = "在庫追加";
+        increaseButton.addEventListener("click", () => {
+          const changeAmount = parseInt(stockInput.value, 10);
+          updateStock(productId, product.stock + changeAmount);
+        });
         itemDiv.appendChild(increaseButton);
 
         const decreaseButton = document.createElement("button");
-        decreaseButton.textContent = "在庫を減少";
-        decreaseButton.addEventListener("click", () => updateStock(productId, Math.max(product.stock - 1, 0)));
+        decreaseButton.textContent = "在庫減少";
+        decreaseButton.addEventListener("click", () => {
+          const changeAmount = parseInt(stockInput.value, 10);
+          updateStock(productId, Math.max(product.stock - changeAmount, 0));
+        });
         itemDiv.appendChild(decreaseButton);
 
         resultsContainer.appendChild(itemDiv);
