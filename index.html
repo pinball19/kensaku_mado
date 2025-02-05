@@ -25,7 +25,7 @@
     }
     .search-container {
       display: flex;
-      flex-wrap: wrap; /* 🔹 ボタンが小さい画面で重ならないようにするためwrapに変更 */
+      flex-wrap: wrap; /* ボタンが重ならないようwrap */
       align-items: center;
       margin-bottom: 20px;
     }
@@ -46,9 +46,8 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      margin-top: 5px; /* 🔹 ラップされたときに上下余白を少し取る */
+      margin-top: 5px;
     }
-    /* 2つめ以降のボタンに左マージン */
     .search-container button:not(:first-of-type) {
       margin-left: 10px;
     }
@@ -91,24 +90,25 @@
       font-size: 0.9rem;
       cursor: pointer;
     }
-    /* 編集フォーム用スタイル */
-    .edit-form {
+    /* 編集フォーム・登録フォーム用スタイル */
+    .edit-form, .register-form {
       margin-top: 15px;
       padding: 10px;
       background: #f9f9f9;
       border: 1px dashed #aaa;
     }
-    .edit-form label {
+    .edit-form label, .register-form label {
       display: block;
       margin: 8px 0 4px;
       font-weight: bold;
     }
-    .edit-form input[type="text"], .edit-form input[type="number"] {
+    .edit-form input[type="text"], .edit-form input[type="number"],
+    .register-form input[type="text"], .register-form input[type="number"] {
       width: 100%;
       padding: 5px;
       margin-bottom: 5px;
     }
-    .edit-form button {
+    .edit-form button, .register-form button {
       margin: 5px 10px 0 0;
     }
     /* 履歴表示 */
@@ -201,7 +201,8 @@
           codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
             if (result) {
               keywordInput.value = result.text;
-              searchProduct(result.text); // 🔹 Firestore検索
+              // 🔸 バーコードで検索
+              searchProduct(result.text, true); // 第2引数 true: スキャンフラグ
               codeReader.reset();
               video.style.display = "none";
             }
@@ -211,8 +212,11 @@
         }
       });
 
-      // 🔹 Firestore検索処理（手入力 or バーコード）
-      function searchProduct(keyword) {
+      /**
+       * 🔹 Firestore検索処理（手入力 or バーコード）
+       *   - scanMode が true のときは「バーコードスキャン」動作
+       */
+      function searchProduct(keyword, scanMode = false) {
         resultsContainer.innerHTML = `<p>「${keyword}」で検索中...</p>`;
 
         db.collection("products")
@@ -221,17 +225,130 @@
           .then((querySnapshot) => {
             resultsContainer.innerHTML = "";
             if (!querySnapshot.empty) {
+              // 該当商品が見つかった場合
               querySnapshot.forEach((doc) => {
                 const product = doc.data();
                 displayProductInfo(doc.id, product);
               });
             } else {
+              // 該当商品が見つからない
               resultsContainer.innerHTML = "<p>該当する商品が見つかりません</p>";
+
+              // 🔸 バーコードスキャンが起点の場合のみ、新規登録フォームを表示
+              if (scanMode) {
+                showRegisterForm(keyword);
+              }
             }
           })
           .catch((error) => {
             console.error("検索エラー:", error);
           });
+      }
+
+      // 🔹 新規登録フォームを表示する
+      function showRegisterForm(scannedBarcode) {
+        const formDiv = document.createElement("div");
+        formDiv.classList.add("register-form");
+
+        const titleLabel = document.createElement("label");
+        titleLabel.textContent = "タイトル";
+        const titleInput = document.createElement("input");
+        titleInput.type = "text";
+
+        const barcodeLabel = document.createElement("label");
+        barcodeLabel.textContent = "バーコード";
+        const barcodeInput = document.createElement("input");
+        barcodeInput.type = "text";
+        // 🔸 スキャンしたバーコードを初期値にセット
+        barcodeInput.value = scannedBarcode || "";
+
+        const placeLabel = document.createElement("label");
+        placeLabel.textContent = "場所";
+        const placeInput = document.createElement("input");
+        placeInput.type = "text";
+
+        const stockLabel = document.createElement("label");
+        stockLabel.textContent = "在庫数";
+        const stockInput = document.createElement("input");
+        stockInput.type = "number";
+        stockInput.value = 0;
+
+        const memoLabel = document.createElement("label");
+        memoLabel.textContent = "メモ";
+        const memoInput = document.createElement("input");
+        memoInput.type = "text";
+
+        // 登録ボタン
+        const registerBtn = document.createElement("button");
+        registerBtn.textContent = "登録";
+        registerBtn.addEventListener("click", async () => {
+          // 入力値取得
+          const newTitle = titleInput.value.trim();
+          const newBarcode = barcodeInput.value.trim();
+          const newPlace = placeInput.value.trim();
+          const newStock = parseInt(stockInput.value, 10) || 0;
+          const newMemo = memoInput.value.trim();
+
+          if (!newTitle) {
+            alert("タイトルを入力してください");
+            return;
+          }
+          if (!newBarcode) {
+            alert("バーコードを入力してください");
+            return;
+          }
+
+          // Firestoreに新規ドキュメント追加
+          try {
+            const docRef = await db.collection("products").add({
+              title: newTitle,
+              barcode: newBarcode,
+              place: newPlace,
+              stock: newStock,
+              memo: newMemo,
+              // gazou: ""  (必要なら)
+            });
+            alert("新規登録しました");
+
+            // 履歴ログにも残す
+            logHistory({
+              productId: docRef.id,
+              changeType: "新規登録",
+              description: `タイトル: ${newTitle}, バーコード: ${newBarcode}, 在庫: ${newStock}`
+            });
+
+            // 登録後にフォームを消して再検索
+            formDiv.remove();
+            searchProduct(newBarcode); // 登録されたバーコードで再検索して表示
+          } catch (err) {
+            console.error("新規登録エラー:", err);
+            alert("登録に失敗しました");
+          }
+        });
+
+        // キャンセルボタン
+        const cancelBtn = document.createElement("button");
+        cancelBtn.textContent = "キャンセル";
+        cancelBtn.addEventListener("click", () => {
+          formDiv.remove();
+        });
+
+        // フォーム要素をまとめて追加
+        formDiv.appendChild(titleLabel);
+        formDiv.appendChild(titleInput);
+        formDiv.appendChild(barcodeLabel);
+        formDiv.appendChild(barcodeInput);
+        formDiv.appendChild(placeLabel);
+        formDiv.appendChild(placeInput);
+        formDiv.appendChild(stockLabel);
+        formDiv.appendChild(stockInput);
+        formDiv.appendChild(memoLabel);
+        formDiv.appendChild(memoInput);
+        formDiv.appendChild(registerBtn);
+        formDiv.appendChild(cancelBtn);
+
+        // 結果表示エリアに追加
+        resultsContainer.appendChild(formDiv);
       }
 
       // 🔹 検索結果を表示 + 在庫更新機能
@@ -538,10 +655,7 @@
               const data = doc.data();
               const time = data.timestamp ? data.timestamp.toDate().toLocaleString() : "日時不明";
               
-              // 🔹 ProductID を表示したくないので削除
-              // もし残したい場合は以下を追加:
-              // `ProductID: ${data.productId} <br>`
-
+              // ProductIDを表示しない例
               html += `
                 <div class="history-item">
                   <strong>[${data.changeType}]</strong> (${time})<br>
