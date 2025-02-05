@@ -5,9 +5,6 @@
   <title>在庫管理システム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    * {
-      box-sizing: border-box;
-    }
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
@@ -27,11 +24,9 @@
       display: flex;
       align-items: center;
       margin-bottom: 20px;
-      flex-wrap: nowrap;
     }
-    .search-container input[type="text"] {
+    .search-container input {
       flex: 1;
-      min-width: 0;
       padding: 10px;
       font-size: 1rem;
       margin-right: 10px;
@@ -46,31 +41,26 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      flex-shrink: 0;
     }
-    .result-item {
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 20px;
-      margin: 15px 0;
-      background-color: #ffffff;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    .result-item h3 {
-      margin-top: 0;
-      color: #0056b3;
-    }
-    .result-item p {
-      margin: 5px 0;
-      color: #555;
-      white-space: pre-wrap;
-    }
-    .stock-input {
-      width: 50px;
-      padding: 5px;
-      margin: 5px;
+    #video-container {
+      display: none;
       text-align: center;
-      border: 1px solid #ccc;
+      position: relative;
+    }
+    #video-preview {
+      width: 100%;
+      max-height: 300px;
+      border-radius: 8px;
+    }
+    #closeScanBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
       border-radius: 5px;
     }
   </style>
@@ -85,17 +75,22 @@
       <button id="scanBtn">スキャン</button>
     </div>
 
+    <div id="video-container">
+      <button id="closeScanBtn">✖ 閉じる</button>
+      <video id="video-preview" autoplay></video>
+    </div>
+
     <div id="errorContainer" class="error-message"></div>
     <div id="results"></div>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase & ZXingライブラリ -->
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.2/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/@zxing/library@latest"></script>
   
   <script>
-    // 🔹 Firebase設定
+    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
@@ -104,17 +99,20 @@
       messagingSenderId: "215585745043",
       appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
     document.addEventListener("DOMContentLoaded", function () {
       const searchBtn = document.getElementById("searchBtn");
       const scanBtn = document.getElementById("scanBtn");
+      const closeScanBtn = document.getElementById("closeScanBtn");
       const keywordInput = document.getElementById("keywordInput");
+      const videoContainer = document.getElementById("video-container");
+      const video = document.getElementById("video-preview");
       const resultsContainer = document.getElementById("results");
+      let codeReader;
 
-      // 🔹 検索ボタンのクリック処理（手入力）
+      // 🔹 検索処理（手入力）
       searchBtn.addEventListener("click", () => {
         const keyword = keywordInput.value.trim();
         if (!keyword) {
@@ -124,19 +122,49 @@
         searchProduct(keyword);
       });
 
-      // 🔹 Firestore検索処理（手入力 or バーコード）
+      // 🔹 スキャンボタンのクリック処理
+      scanBtn.addEventListener("click", async () => {
+        try {
+          videoContainer.style.display = "block";
+          codeReader = new ZXing.BrowserBarcodeReader();
+          
+          // バーコードスキャン開始
+          codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
+            if (result) {
+              keywordInput.value = result.text;
+              searchProduct(result.text);
+              stopScanning();
+            }
+          });
+        } catch (error) {
+          alert("カメラを使用できません：" + error.message);
+        }
+      });
+
+      // 🔹 スキャン停止処理
+      function stopScanning() {
+        if (codeReader) {
+          codeReader.reset();
+        }
+        videoContainer.style.display = "none";
+      }
+
+      // 🔹 閉じるボタン
+      closeScanBtn.addEventListener("click", stopScanning);
+
+      // 🔹 Firestore検索処理
       function searchProduct(keyword) {
         resultsContainer.innerHTML = `<p>「${keyword}」で検索中...</p>`;
 
         db.collection("products")
-          .where("barcode", "==", keyword)  // 🔹 バーコード検索
+          .where("barcode", "==", keyword)
           .get()
           .then((querySnapshot) => {
             resultsContainer.innerHTML = "";
             if (!querySnapshot.empty) {
               querySnapshot.forEach((doc) => {
                 const product = doc.data();
-                displayProductInfo(doc.id, product);
+                resultsContainer.innerHTML += `<p>${product.title}（在庫: ${product.stock}）</p>`;
               });
             } else {
               resultsContainer.innerHTML = "<p>該当する商品が見つかりません</p>";
@@ -144,57 +172,6 @@
           })
           .catch((error) => {
             console.error("検索エラー:", error);
-          });
-      }
-
-      // 🔹 検索結果を表示 + 在庫更新機能
-      function displayProductInfo(productId, product) {
-        const itemDiv = document.createElement("div");
-        itemDiv.classList.add("result-item");
-
-        const title = document.createElement("h3");
-        title.textContent = product.title || "商品名不明";
-        itemDiv.appendChild(title);
-
-        const stock = document.createElement("p");
-        stock.textContent = `在庫数: ${product.stock || 0}`;
-        itemDiv.appendChild(stock);
-
-        const stockInput = document.createElement("input");
-        stockInput.type = "number";
-        stockInput.min = "1";
-        stockInput.value = "1";
-        stockInput.classList.add("stock-input");
-        itemDiv.appendChild(stockInput);
-
-        const increaseButton = document.createElement("button");
-        increaseButton.textContent = "在庫追加";
-        increaseButton.addEventListener("click", () => {
-          const changeAmount = parseInt(stockInput.value, 10);
-          updateStock(productId, product.stock + changeAmount);
-        });
-        itemDiv.appendChild(increaseButton);
-
-        const decreaseButton = document.createElement("button");
-        decreaseButton.textContent = "在庫減少";
-        decreaseButton.addEventListener("click", () => {
-          const changeAmount = parseInt(stockInput.value, 10);
-          updateStock(productId, Math.max(product.stock - changeAmount, 0));
-        });
-        itemDiv.appendChild(decreaseButton);
-
-        resultsContainer.appendChild(itemDiv);
-      }
-
-      // 🔹 Firestoreの在庫更新処理
-      function updateStock(productId, newStock) {
-        db.collection("products").doc(productId).update({ stock: newStock })
-          .then(() => {
-            alert("在庫を更新しました");
-            searchProduct(keywordInput.value); // 再検索して最新の在庫を表示
-          })
-          .catch((error) => {
-            console.error("在庫更新エラー:", error);
           });
       }
     });
