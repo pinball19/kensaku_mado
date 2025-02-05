@@ -382,11 +382,11 @@
         titleHeading.textContent = data.title || data.id;
         itemDiv.appendChild(titleHeading);
 
-        // 静的表示用説明文（p）
+        // 静的表示用在庫数文（p）
         let descriptionP;
         if (data.text) {
           descriptionP = document.createElement("p");
-          descriptionP.innerHTML = `説明: ${data.text.replace(/\n/g, "<br>")}`;
+          descriptionP.innerHTML = `在庫数: ${data.text.replace(/\n/g, "<br>")}`;
           itemDiv.appendChild(descriptionP);
         }
 
@@ -426,7 +426,7 @@
 
         // --- 編集モードへの切替処理 ---
         editButton.addEventListener("click", () => {
-          // 編集用のタイトル・説明の input/textarea を作成
+          // 編集用のタイトル・在庫数の input/textarea を作成
           const titleInput = document.createElement("input");
           titleInput.type = "text";
           titleInput.value = data.title || data.id;
@@ -439,7 +439,7 @@
           if (data.text) {
             descriptionTextarea.value = data.text;
           } else {
-            descriptionTextarea.placeholder = "説明を入力";
+            descriptionTextarea.placeholder = "在庫数を入力";
           }
 
           // 編集モード用の URL 入力欄コンテナ（順番：リンクタイトル, URL）
@@ -518,7 +518,7 @@
               let newDescriptionP;
               if (newText) {
                 newDescriptionP = document.createElement("p");
-                newDescriptionP.innerHTML = `説明: ${newText.replace(/\n/g, "<br>")}`;
+                newDescriptionP.innerHTML = `在庫数: ${newText.replace(/\n/g, "<br>")}`;
                 if (descriptionP) {
                   itemDiv.replaceChild(newDescriptionP, descriptionTextarea);
                 } else {
