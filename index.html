@@ -61,6 +61,7 @@
       margin: 15px 0;
       background-color: #ffffff;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      position: relative;
     }
     .result-item h3 {
       margin-top: 0;
@@ -84,6 +85,26 @@
       margin: 0 5px;
       font-size: 0.9rem;
       cursor: pointer;
+    }
+    /* 編集フォーム用スタイル */
+    .edit-form {
+      margin-top: 15px;
+      padding: 10px;
+      background: #f9f9f9;
+      border: 1px dashed #aaa;
+    }
+    .edit-form label {
+      display: block;
+      margin: 8px 0 4px;
+      font-weight: bold;
+    }
+    .edit-form input[type="text"], .edit-form input[type="number"] {
+      width: 100%;
+      padding: 5px;
+      margin-bottom: 5px;
+    }
+    .edit-form button {
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -118,7 +139,6 @@
       messagingSenderId: "215585745043",
       appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
     };
-
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
@@ -187,29 +207,27 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // 1. title
+        // --- 1. title ---
         const titleEl = document.createElement("h3");
         titleEl.textContent = product.title || "商品名不明";
         itemDiv.appendChild(titleEl);
 
-        // 2. barcode
-        //  データベースに "barcode" フィールドがある前提
+        // --- 2. barcode ---
         const barcodeEl = document.createElement("p");
         barcodeEl.textContent = `バーコード: ${product.barcode || ""}`;
         itemDiv.appendChild(barcodeEl);
 
-        // 3. place
-        //  データベースに "place" フィールドがある前提
+        // --- 3. place ---
         const placeEl = document.createElement("p");
         placeEl.textContent = `場所: ${product.place || ""}`;
         itemDiv.appendChild(placeEl);
 
-        // 4. stock
+        // --- 4. stock ---
         const stockEl = document.createElement("p");
         stockEl.textContent = `在庫数: ${product.stock || 0}`;
         itemDiv.appendChild(stockEl);
 
-        // 5. 在庫追加
+        // --- 5. 在庫追加 ---
         const addRow = document.createElement("div");
         addRow.classList.add("action-row");
 
@@ -233,7 +251,7 @@
 
         itemDiv.appendChild(addRow);
 
-        // 6. 在庫減少
+        // --- 6. 在庫減少 ---
         const subtractRow = document.createElement("div");
         subtractRow.classList.add("action-row");
 
@@ -257,18 +275,31 @@
 
         itemDiv.appendChild(subtractRow);
 
-        // 7. memo
-        //  データベースに "memo" フィールドがある前提
+        // --- 7. memo ---
         const memoEl = document.createElement("p");
         memoEl.textContent = `メモ: ${product.memo || ""}`;
         itemDiv.appendChild(memoEl);
 
-        // 8. gazou
-        //  データベースに "gazou" フィールドがある前提
-        //  画像URLとしての想定がある場合は、imgタグで表示してもOKです
+        // --- 8. gazou (出力窓で表示しないようにする) ---
+        //  元のコードでは gazouEl を作成していましたが、今回は表示しないように削除。
+        //  Firestore 上にフィールドがあっても問題ありませんが、ここではHTML表示しません。
+        /*
         const gazouEl = document.createElement("p");
         gazouEl.textContent = `画像: ${product.gazou || ""}`;
         itemDiv.appendChild(gazouEl);
+        */
+
+        // ---- 編集ボタンを配置して、全フィールドを編集できるフォームを表示 ----
+        const editButton = document.createElement("button");
+        editButton.textContent = "編集";
+        editButton.style.marginTop = "15px";
+
+        // クリックで編集フォームを表示
+        editButton.addEventListener("click", () => {
+          showEditForm(itemDiv, productId, product);
+        });
+
+        itemDiv.appendChild(editButton);
 
         resultsContainer.appendChild(itemDiv);
       }
@@ -284,6 +315,99 @@
           .catch((error) => {
             console.error("在庫更新エラー:", error);
           });
+      }
+
+      // 🔹 編集フォームを表示する
+      function showEditForm(itemDiv, productId, product) {
+        // すでにフォームがある場合は重複しないよう削除
+        const existingForm = itemDiv.querySelector(".edit-form");
+        if (existingForm) {
+          existingForm.remove();
+        }
+
+        const editForm = document.createElement("div");
+        editForm.classList.add("edit-form");
+
+        // タイトル編集
+        const labelTitle = document.createElement("label");
+        labelTitle.textContent = "タイトル";
+        const inputTitle = document.createElement("input");
+        inputTitle.type = "text";
+        inputTitle.value = product.title || "";
+        editForm.appendChild(labelTitle);
+        editForm.appendChild(inputTitle);
+
+        // バーコード編集
+        const labelBarcode = document.createElement("label");
+        labelBarcode.textContent = "バーコード";
+        const inputBarcode = document.createElement("input");
+        inputBarcode.type = "text";
+        inputBarcode.value = product.barcode || "";
+        editForm.appendChild(labelBarcode);
+        editForm.appendChild(inputBarcode);
+
+        // 場所編集
+        const labelPlace = document.createElement("label");
+        labelPlace.textContent = "場所";
+        const inputPlace = document.createElement("input");
+        inputPlace.type = "text";
+        inputPlace.value = product.place || "";
+        editForm.appendChild(labelPlace);
+        editForm.appendChild(inputPlace);
+
+        // 在庫数編集
+        const labelStock = document.createElement("label");
+        labelStock.textContent = "在庫数";
+        const inputStock = document.createElement("input");
+        inputStock.type = "number";
+        inputStock.value = product.stock || 0;
+        editForm.appendChild(labelStock);
+        editForm.appendChild(inputStock);
+
+        // メモ編集
+        const labelMemo = document.createElement("label");
+        labelMemo.textContent = "メモ";
+        const inputMemo = document.createElement("input");
+        inputMemo.type = "text";
+        inputMemo.value = product.memo || "";
+        editForm.appendChild(labelMemo);
+        editForm.appendChild(inputMemo);
+
+        // gazou は画面には表示しないが、もし編集で保持したい場合は
+        // input だけ用意して Firestore 上の値は更新するという方法も可能。
+        // 今回は表示しない想定のため省略します。
+
+        // 保存ボタン
+        const saveButton = document.createElement("button");
+        saveButton.textContent = "保存";
+        saveButton.addEventListener("click", async () => {
+          const newTitle = inputTitle.value.trim();
+          const newBarcode = inputBarcode.value.trim();
+          const newPlace = inputPlace.value.trim();
+          const newStock = parseInt(inputStock.value, 10);
+          const newMemo = inputMemo.value.trim();
+
+          // Firestoreを更新
+          try {
+            await db.collection("products").doc(productId).update({
+              title: newTitle,
+              barcode: newBarcode,
+              place: newPlace,
+              stock: isNaN(newStock) ? 0 : newStock,
+              memo: newMemo
+              // gazou: 保持したい場合はここで設定
+            });
+            alert("更新しました");
+            // 更新後、再検索して画面をリフレッシュ
+            searchProduct(keywordInput.value);
+          } catch (err) {
+            console.error("編集保存エラー:", err);
+            alert("編集の保存に失敗しました");
+          }
+        });
+        editForm.appendChild(saveButton);
+
+        itemDiv.appendChild(editForm);
       }
     });
   </script>
