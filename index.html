@@ -111,12 +111,12 @@
   <script>
     // 🔹 Firebase設定
     const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
-      authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
-      projectId: "slack-bot-firebase-7991a",
-      storageBucket: "slack-bot-firebase-7991a.appspot.com",
-      messagingSenderId: "215585745043",
-      appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -163,7 +163,7 @@
         resultsContainer.innerHTML = `<p>「${keyword}」で検索中...</p>`;
 
         db.collection("products")
-          .where("barcode", "==", keyword)  // 🔹 バーコード検索
+          .where("barcode", "==", keyword)
           .get()
           .then((querySnapshot) => {
             resultsContainer.innerHTML = "";
@@ -186,15 +186,29 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        const title = document.createElement("h3");
-        title.textContent = product.title || "商品名不明";
-        itemDiv.appendChild(title);
+        // 1. title
+        const titleEl = document.createElement("h3");
+        titleEl.textContent = product.title || "商品名不明";
+        itemDiv.appendChild(titleEl);
 
-        const stock = document.createElement("p");
-        stock.textContent = `在庫数: ${product.stock || 0}`;
-        itemDiv.appendChild(stock);
+        // 2. barcode
+        //  データベースに "barcode" フィールドがある前提
+        const barcodeEl = document.createElement("p");
+        barcodeEl.textContent = `バーコード: ${product.barcode || ""}`;
+        itemDiv.appendChild(barcodeEl);
 
-        // --- 在庫追加欄 ---
+        // 3. place
+        //  データベースに "place" フィールドがある前提
+        const placeEl = document.createElement("p");
+        placeEl.textContent = `場所: ${product.place || ""}`;
+        itemDiv.appendChild(placeEl);
+
+        // 4. stock
+        const stockEl = document.createElement("p");
+        stockEl.textContent = `在庫数: ${product.stock || 0}`;
+        itemDiv.appendChild(stockEl);
+
+        // 5. 在庫追加
         const addRow = document.createElement("div");
         addRow.classList.add("action-row");
 
@@ -218,7 +232,7 @@
 
         itemDiv.appendChild(addRow);
 
-        // --- 在庫減少欄（1段下に配置） ---
+        // 6. 在庫減少
         const subtractRow = document.createElement("div");
         subtractRow.classList.add("action-row");
 
@@ -241,6 +255,19 @@
         subtractRow.appendChild(decreaseButton);
 
         itemDiv.appendChild(subtractRow);
+
+        // 7. memo
+        //  データベースに "memo" フィールドがある前提
+        const memoEl = document.createElement("p");
+        memoEl.textContent = `メモ: ${product.memo || ""}`;
+        itemDiv.appendChild(memoEl);
+
+        // 8. gazou
+        //  データベースに "gazou" フィールドがある前提
+        //  画像URLとしての想定がある場合は、imgタグで表示してもOKです
+        const gazouEl = document.createElement("p");
+        gazouEl.textContent = `画像: ${product.gazou || ""}`;
+        itemDiv.appendChild(gazouEl);
 
         resultsContainer.appendChild(itemDiv);
       }
