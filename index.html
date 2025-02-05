@@ -74,7 +74,10 @@
     .result-item p {
       margin: 5px 0;
       color: #555;
-      white-space: pre-wrap;
+      /* 長いテキストが枠を突き抜けないように設定 */
+      white-space: pre-wrap;           /* 改行を保持しつつ、必要に応じて折り返し */
+      word-wrap: break-word;           /* 長い単語を折り返せるようにする */
+      overflow-wrap: break-word;       /* 同上 */
     }
     .action-row {
       margin-top: 10px;
@@ -201,8 +204,7 @@
           codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
             if (result) {
               keywordInput.value = result.text;
-              // 🔸 バーコードで検索
-              searchProduct(result.text, true); // 第2引数 true: スキャンフラグ
+              searchProduct(result.text, true); // 🔸 第2引数: スキャンフラグ
               codeReader.reset();
               video.style.display = "none";
             }
@@ -234,7 +236,7 @@
               // 該当商品が見つからない
               resultsContainer.innerHTML = "<p>該当する商品が見つかりません</p>";
 
-              // 🔸 バーコードスキャンが起点の場合のみ、新規登録フォームを表示
+              // スキャンから来た場合は新規登録フォームを表示する例（既存コード）
               if (scanMode) {
                 showRegisterForm(keyword);
               }
@@ -245,7 +247,7 @@
           });
       }
 
-      // 🔹 新規登録フォームを表示する
+      // 🔹 新規登録フォーム
       function showRegisterForm(scannedBarcode) {
         const formDiv = document.createElement("div");
         formDiv.classList.add("register-form");
@@ -259,7 +261,6 @@
         barcodeLabel.textContent = "バーコード";
         const barcodeInput = document.createElement("input");
         barcodeInput.type = "text";
-        // 🔸 スキャンしたバーコードを初期値にセット
         barcodeInput.value = scannedBarcode || "";
 
         const placeLabel = document.createElement("label");
@@ -278,6 +279,12 @@
         const memoInput = document.createElement("input");
         memoInput.type = "text";
 
+        // 🔸 新たに url フィールドを追加
+        const urlLabel = document.createElement("label");
+        urlLabel.textContent = "URL";
+        const urlInput = document.createElement("input");
+        urlInput.type = "text";
+
         // 登録ボタン
         const registerBtn = document.createElement("button");
         registerBtn.textContent = "登録";
@@ -288,6 +295,7 @@
           const newPlace = placeInput.value.trim();
           const newStock = parseInt(stockInput.value, 10) || 0;
           const newMemo = memoInput.value.trim();
+          const newUrl = urlInput.value.trim();
 
           if (!newTitle) {
             alert("タイトルを入力してください");
@@ -306,7 +314,7 @@
               place: newPlace,
               stock: newStock,
               memo: newMemo,
-              // gazou: ""  (必要なら)
+              url: newUrl
             });
             alert("新規登録しました");
 
@@ -319,7 +327,7 @@
 
             // 登録後にフォームを消して再検索
             formDiv.remove();
-            searchProduct(newBarcode); // 登録されたバーコードで再検索して表示
+            searchProduct(newBarcode);
           } catch (err) {
             console.error("新規登録エラー:", err);
             alert("登録に失敗しました");
@@ -344,6 +352,11 @@
         formDiv.appendChild(stockInput);
         formDiv.appendChild(memoLabel);
         formDiv.appendChild(memoInput);
+
+        // 🔸 url フィールド追加
+        formDiv.appendChild(urlLabel);
+        formDiv.appendChild(urlInput);
+
         formDiv.appendChild(registerBtn);
         formDiv.appendChild(cancelBtn);
 
@@ -433,7 +446,21 @@
         memoEl.textContent = `メモ: ${product.memo || ""}`;
         itemDiv.appendChild(memoEl);
 
-        // --- gazou 非表示 (削除) ---
+        // --- 8. url (新規追加) ---
+        const urlEl = document.createElement("p");
+        if (product.url) {
+          // クリックで開けるように <a> タグを使う
+          const link = document.createElement("a");
+          link.href = product.url;
+          link.target = "_blank";  // 新規タブで開く
+          link.rel = "noopener";   // セキュリティ対策
+          link.textContent = product.url;
+          urlEl.textContent = "URL: ";
+          urlEl.appendChild(link);
+        } else {
+          urlEl.textContent = "URL: (なし)";
+        }
+        itemDiv.appendChild(urlEl);
 
         // ---- 編集ボタンを配置して、全フィールドを編集できるフォームを表示 ----
         const editButton = document.createElement("button");
@@ -527,6 +554,15 @@
         editForm.appendChild(labelMemo);
         editForm.appendChild(inputMemo);
 
+        // URL
+        const labelUrl = document.createElement("label");
+        labelUrl.textContent = "URL";
+        const inputUrl = document.createElement("input");
+        inputUrl.type = "text";
+        inputUrl.value = product.url || "";
+        editForm.appendChild(labelUrl);
+        editForm.appendChild(inputUrl);
+
         // 変更を保存
         const saveButton = document.createElement("button");
         saveButton.textContent = "保存";
@@ -536,6 +572,7 @@
           const newPlace = inputPlace.value.trim();
           const newStock = parseInt(inputStock.value, 10);
           const newMemo = inputMemo.value.trim();
+          const newUrl = inputUrl.value.trim();
 
           // 古い値
           const oldData = {
@@ -543,7 +580,8 @@
             barcode: product.barcode || "",
             place: product.place || "",
             stock: product.stock || 0,
-            memo: product.memo || ""
+            memo: product.memo || "",
+            url: product.url || ""
           };
           // 新しい値
           const updatedData = {
@@ -551,7 +589,8 @@
             barcode: newBarcode,
             place: newPlace,
             stock: isNaN(newStock) ? 0 : newStock,
-            memo: newMemo
+            memo: newMemo,
+            url: newUrl
           };
 
           try {
@@ -608,6 +647,9 @@
         }
         if (oldData.memo !== newData.memo) {
           messages.push(`メモ: "${oldData.memo}" → "${newData.memo}"`);
+        }
+        if (oldData.url !== newData.url) {
+          messages.push(`URL: "${oldData.url}" → "${newData.url}"`);
         }
 
         if (messages.length === 0) {
