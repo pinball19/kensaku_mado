@@ -74,10 +74,9 @@
     .result-item p {
       margin: 5px 0;
       color: #555;
-      /* 長いテキストが枠を突き抜けないように設定 */
-      white-space: pre-wrap;           /* 改行を保持しつつ、必要に応じて折り返し */
-      word-wrap: break-word;           /* 長い単語を折り返せるようにする */
-      overflow-wrap: break-word;       /* 同上 */
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
     .action-row {
       margin-top: 10px;
@@ -137,17 +136,22 @@
   <div class="container">
     <h1>在庫管理システム</h1>
 
+    <!-- 検索・スキャン -->
     <div class="search-container">
       <input id="keywordInput" type="text" placeholder="検索キーワードを入力" />
       <button id="searchBtn">検索</button>
       <button id="scanBtn">スキャン</button>
     </div>
 
+    <!-- バーコードスキャン用のVideo -->
     <video id="video-preview" autoplay></video>
     <div id="errorContainer" class="error-message"></div>
 
     <!-- 検索結果を表示 -->
     <div id="results"></div>
+
+    <!-- CSV出力ボタン -->
+    <button id="exportCsvBtn">CSV出力</button>
 
     <!-- 直近10件の履歴を表示する領域 -->
     <div id="historyContainer">
@@ -181,6 +185,7 @@
       const keywordInput = document.getElementById("keywordInput");
       const video = document.getElementById("video-preview");
       const resultsContainer = document.getElementById("results");
+      const exportBtn = document.getElementById("exportCsvBtn");
 
       // ページ読込時、直近の履歴を読み込み
       loadRecentHistory();
@@ -204,7 +209,7 @@
           codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
             if (result) {
               keywordInput.value = result.text;
-              searchProduct(result.text, true); // 🔸 第2引数: スキャンフラグ
+              searchProduct(result.text, true); // 🔸 scanMode = true
               codeReader.reset();
               video.style.display = "none";
             }
@@ -216,7 +221,7 @@
 
       /**
        * 🔹 Firestore検索処理（手入力 or バーコード）
-       *   - scanMode が true のときは「バーコードスキャン」動作
+       *   - scanMode が true のときは「バーコードスキャン」で該当なしの場合に新規登録フォーム表示
        */
       function searchProduct(keyword, scanMode = false) {
         resultsContainer.innerHTML = `<p>「${keyword}」で検索中...</p>`;
@@ -236,7 +241,7 @@
               // 該当商品が見つからない
               resultsContainer.innerHTML = "<p>該当する商品が見つかりません</p>";
 
-              // スキャンから来た場合は新規登録フォームを表示する例（既存コード）
+              // スキャンから来ていて商品が見つからない場合は、新規登録フォームを出す
               if (scanMode) {
                 showRegisterForm(keyword);
               }
@@ -247,7 +252,7 @@
           });
       }
 
-      // 🔹 新規登録フォーム
+      // 🔹 新規登録フォーム表示
       function showRegisterForm(scannedBarcode) {
         const formDiv = document.createElement("div");
         formDiv.classList.add("register-form");
@@ -279,7 +284,7 @@
         const memoInput = document.createElement("input");
         memoInput.type = "text";
 
-        // 🔸 新たに url フィールドを追加
+        // 🔸 url フィールドを追加
         const urlLabel = document.createElement("label");
         urlLabel.textContent = "URL";
         const urlInput = document.createElement("input");
@@ -352,11 +357,8 @@
         formDiv.appendChild(stockInput);
         formDiv.appendChild(memoLabel);
         formDiv.appendChild(memoInput);
-
-        // 🔸 url フィールド追加
         formDiv.appendChild(urlLabel);
         formDiv.appendChild(urlInput);
-
         formDiv.appendChild(registerBtn);
         formDiv.appendChild(cancelBtn);
 
@@ -369,27 +371,27 @@
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // --- 1. title ---
+        // 1. title
         const titleEl = document.createElement("h3");
         titleEl.textContent = product.title || "商品名不明";
         itemDiv.appendChild(titleEl);
 
-        // --- 2. barcode ---
+        // 2. barcode
         const barcodeEl = document.createElement("p");
         barcodeEl.textContent = `バーコード: ${product.barcode || ""}`;
         itemDiv.appendChild(barcodeEl);
 
-        // --- 3. place ---
+        // 3. place
         const placeEl = document.createElement("p");
         placeEl.textContent = `場所: ${product.place || ""}`;
         itemDiv.appendChild(placeEl);
 
-        // --- 4. stock ---
+        // 4. stock
         const stockEl = document.createElement("p");
         stockEl.textContent = `在庫数: ${product.stock || 0}`;
         itemDiv.appendChild(stockEl);
 
-        // --- 5. 在庫追加 ---
+        // 5. 在庫追加
         const addRow = document.createElement("div");
         addRow.classList.add("action-row");
 
@@ -415,7 +417,7 @@
 
         itemDiv.appendChild(addRow);
 
-        // --- 6. 在庫減少 ---
+        // 6. 在庫減少
         const subtractRow = document.createElement("div");
         subtractRow.classList.add("action-row");
 
@@ -441,19 +443,18 @@
 
         itemDiv.appendChild(subtractRow);
 
-        // --- 7. memo ---
+        // 7. memo
         const memoEl = document.createElement("p");
         memoEl.textContent = `メモ: ${product.memo || ""}`;
         itemDiv.appendChild(memoEl);
 
-        // --- 8. url (新規追加) ---
+        // 8. url (あればクリック可能リンクに)
         const urlEl = document.createElement("p");
         if (product.url) {
-          // クリックで開けるように <a> タグを使う
           const link = document.createElement("a");
           link.href = product.url;
-          link.target = "_blank";  // 新規タブで開く
-          link.rel = "noopener";   // セキュリティ対策
+          link.target = "_blank";
+          link.rel = "noopener"; // セキュリティ対策
           link.textContent = product.url;
           urlEl.textContent = "URL: ";
           urlEl.appendChild(link);
@@ -462,7 +463,7 @@
         }
         itemDiv.appendChild(urlEl);
 
-        // ---- 編集ボタンを配置して、全フィールドを編集できるフォームを表示 ----
+        // 編集ボタン
         const editButton = document.createElement("button");
         editButton.textContent = "編集";
         editButton.style.marginTop = "15px";
@@ -476,10 +477,7 @@
         resultsContainer.appendChild(itemDiv);
       }
 
-      /**
-       * 🔹 Firestoreの在庫更新処理
-       *   - 変更履歴を "history" コレクションに追加
-       */
+      // 🔹 Firestoreの在庫更新処理
       function updateStock(productId, newStock, oldStock) {
         db.collection("products").doc(productId).update({ stock: newStock })
           .then(() => {
@@ -563,7 +561,7 @@
         editForm.appendChild(labelUrl);
         editForm.appendChild(inputUrl);
 
-        // 変更を保存
+        // 保存ボタン
         const saveButton = document.createElement("button");
         saveButton.textContent = "保存";
         saveButton.addEventListener("click", async () => {
@@ -598,7 +596,7 @@
 
             alert("更新しました");
 
-            // 履歴に追加（編集内容の差分を記録）
+            // 履歴に追加（編集内容の差分をログ）
             const diffText = buildChangeSummary(oldData, updatedData);
             logHistory({
               productId: productId,
@@ -606,7 +604,7 @@
               description: diffText
             });
 
-            // 更新後、再検索して画面をリフレッシュ
+            // 更新後、再検索して最新の状態を反映
             searchProduct(keywordInput.value);
           } catch (err) {
             console.error("編集保存エラー:", err);
@@ -628,9 +626,7 @@
         itemDiv.appendChild(editForm);
       }
 
-      /**
-       * 変更点を簡易的にまとめる関数
-       */
+      // 🔹 変更点をまとめる（履歴表示用）
       function buildChangeSummary(oldData, newData) {
         let messages = [];
         if (oldData.title !== newData.title) {
@@ -659,9 +655,7 @@
         }
       }
 
-      /**
-       * ログを "history" コレクションに追加
-       */
+      // 🔹 ログを "history" コレクションに追加
       function logHistory({ productId, changeType, description }) {
         db.collection("history").add({
           productId: productId,
@@ -676,9 +670,7 @@
         });
       }
 
-      /**
-       * 直近10件の履歴を読み込み、表示
-       */
+      // 🔹 直近10件の履歴を読み込み、表示
       function loadRecentHistory() {
         const historyList = document.getElementById("historyList");
         historyList.innerHTML = "読み込み中...";
@@ -696,7 +688,7 @@
             snapshot.forEach(doc => {
               const data = doc.data();
               const time = data.timestamp ? data.timestamp.toDate().toLocaleString() : "日時不明";
-              
+
               // ProductIDを表示しない例
               html += `
                 <div class="history-item">
@@ -712,6 +704,57 @@
             historyList.innerHTML = "履歴を読み込めませんでした";
           });
       }
+
+      // 🔹 CSV出力ボタン: 全ドキュメントをCSVダウンロード
+      exportBtn.addEventListener("click", async () => {
+        try {
+          // Firestoreから全データを取得（productsコレクション全件）
+          const snapshot = await db.collection("products").get();
+
+          if (snapshot.empty) {
+            alert("出力するデータがありません");
+            return;
+          }
+
+          // CSVヘッダの定義
+          const headers = ["title", "barcode", "place", "stock", "memo", "url"];
+          let csvContent = headers.join(",") + "\n";
+
+          // 各ドキュメントをCSV行に変換
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            // ダブルクォートで囲み、内部のクォートをエスケープ
+            const row = [
+              data.title || "",
+              data.barcode || "",
+              data.place || "",
+              data.stock != null ? data.stock : "",
+              data.memo || "",
+              data.url || ""
+            ].map(val => `"${val.replace(/"/g, '""')}"`)
+             .join(",");
+
+            csvContent += row + "\n";
+          });
+
+          // Blob化してダウンロード
+          const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "products_export.csv"; // ダウンロードファイル名
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          URL.revokeObjectURL(url);
+          alert("CSVファイルをダウンロードしました。");
+        } catch (err) {
+          console.error("CSV出力エラー:", err);
+          alert("CSV出力に失敗しました");
+        }
+      });
     });
   </script>
 </body>
