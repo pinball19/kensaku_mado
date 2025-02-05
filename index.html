@@ -2,10 +2,13 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>内部資料検索＆更新システム</title>
+  <title>在庫管理システム</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     /* 全体の基本スタイル */
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
@@ -79,9 +82,11 @@
       display: flex;
       align-items: center;
       margin-bottom: 20px;
+      flex-wrap: nowrap;  /* 折り返しを防ぐ */
     }
     .search-container input[type="text"] {
       flex: 1;
+      min-width: 0;
       padding: 10px;
       font-size: 1rem;
       margin-right: 10px;
@@ -96,8 +101,9 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
+      flex-shrink: 0;
     }
-    /* 出力窓のデザイン（過去に記述したコード2と同じ） */
+    /* 出力窓のデザイン（過去に記述したコード4と同じ） */
     .result-item {
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -117,19 +123,55 @@
       color: #555;
       white-space: pre-wrap;
     }
-    .result-item a {
+    .link-card {
+      background-color: #f4f8fb;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-decoration: none;
       color: #0056b3;
-      text-decoration: underline;
-      display: block;
-      margin-top: 10px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .result-item a:hover {
-      color: #003f8a;
+    .link-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .link-card-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .link-card-url {
+      font-size: 0.9rem;
+      color: #555;
+      word-break: break-all;
     }
     /* ローダー */
     #loader {
       text-align: center;
       display: none;
+    }
+    /* スマホなど小さい画面向けの調整 */
+    @media (max-width: 480px) {
+      .container {
+        width: 100%;
+        margin: 0;
+        padding: 0 10px;
+      }
+      .search-container {
+         padding: 0;
+      }
+      .search-container button {
+         padding: 10px;
+         font-size: 0.9rem;
+      }
+      .result-item {
+         max-width: 100%;
+      }
     }
   </style>
 </head>
@@ -165,7 +207,7 @@
     <div style="text-align: right;">
       <button id="sign-out-btn">Sign Out</button>
     </div>
-    <h1>内部資料検索＆更新システム</h1>
+    <h1>在庫管理システム</h1>
     <div class="search-container">
       <input id="keywordInput" type="text" placeholder="検索キーワードを入力（部分一致）" />
       <button id="searchBtn">検索</button>
@@ -181,12 +223,12 @@
   <script>
     // Firebase 設定
     const firebaseConfig = {
-      apiKey: "AIzaSyCnRbmcPezD4Osiss5ukBqttQw",
+      apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
       projectId: "slack-bot-firebase-7991a",
       storageBucket: "slack-bot-firebase-7991a.appspot.com",
-      messagingSenderId: "2155745043",
-      appId: "1:2155745043:web:123456abcdef"
+      messagingSenderId: "215585745043",
+      appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
     };
 
     // Firebase 初期化
@@ -275,7 +317,7 @@
         document.getElementById("auth-container").style.display = "none";
         loader.style.display = "none";
         appContainer.style.display = "block";
-        fetchAllProducts();  // Firestore からデータを取得
+        subscribeToProducts();  // onSnapshot によるリアルタイム更新を開始
       } else {
         // 未認証時：認証用コンテナを表示、メインアプリは非表示
         document.getElementById("auth-container").style.display = "block";
@@ -288,18 +330,25 @@
       auth.signOut().catch((err) => console.error("サインアウトエラー:", err));
     });
 
-    // Firestore データの取得・検索処理
+    // リアルタイム更新用：Firestore の onSnapshot を使ってデータを取得
     let allProducts = [];
-    async function fetchAllProducts() {
-      try {
-        const snapshot = await db.collection("products").get();
+    function subscribeToProducts() {
+      db.collection("products").onSnapshot((snapshot) => {
+        // 変更のあったドキュメントだけでなく全体を更新する場合
         allProducts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      } catch (err) {
-        console.error("データ取得エラー:", err);
-        errorContainer.textContent = "データ取得中にエラーが発生しました。";
-      }
+        // もし現在検索キーワードが入力されているなら、再度検索結果を表示する
+        const keyword = keywordInput.value.trim();
+        if (keyword) {
+          const matchedResults = allProducts.filter((data) =>
+            (data.title && data.title.includes(keyword)) ||
+            (data.text && data.text.includes(keyword))
+          );
+          displayResults(matchedResults);
+        }
+      });
     }
 
+    // 検索ボタンの処理
     searchBtn.addEventListener("click", () => {
       errorContainer.textContent = "";
       const keyword = keywordInput.value.trim();
@@ -307,7 +356,6 @@
         errorContainer.textContent = "検索キーワードを入力してください。";
         return;
       }
-      // 「titleフィールド」と「textフィールド」を検索対象に部分一致で抽出
       const matchedResults = allProducts.filter((data) =>
         (data.title && data.title.includes(keyword)) ||
         (data.text && data.text.includes(keyword))
@@ -315,45 +363,247 @@
       displayResults(matchedResults);
     });
 
-    // 出力窓の内容とデザイン（過去に記述したコード2と同じ）
+    // 出力窓の内容・デザイン（過去に記述したコード4と同じ）に、編集機能を追加
     function displayResults(results) {
-      resultsContainer.innerHTML = "";
+      resultsContainer.innerHTML = ""; // 結果をクリア
+
       if (results.length === 0) {
         resultsContainer.innerHTML = "<p>該当する資料が見つかりません。</p>";
         return;
       }
+
       results.forEach((data) => {
+        // --- 静的表示モードの要素作成 ---
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
-        // ドキュメントIDまたは title を見出しとして表示
-        const docIdHeading = document.createElement("h3");
-        // 過去のコード2では docId を直接表示していますが、
-        // ここでは title がある場合は title、なければ id を表示
-        docIdHeading.textContent = data.title || data.id;
-        itemDiv.appendChild(docIdHeading);
+        // 静的表示用タイトル（h3）
+        let titleHeading = document.createElement("h3");
+        titleHeading.textContent = data.title || data.id;
+        itemDiv.appendChild(titleHeading);
 
-        // 商品の説明 (textフィールド)
+        // 静的表示用在庫数文（p）
+        let descriptionP;
         if (data.text) {
-          const descriptionP = document.createElement("p");
-          descriptionP.textContent = `説明: ${data.text}`;
+          descriptionP = document.createElement("p");
+          descriptionP.innerHTML = `在庫数: ${data.text.replace(/\n/g, "<br>")}`;
           itemDiv.appendChild(descriptionP);
         }
 
-        // URLフィールド（url1～url3）のリンク生成
-        const urlFields = [data.url1, data.url2, data.url3].filter(Boolean);
-        urlFields.forEach((url, index) => {
-          const linkEl = document.createElement("a");
-          linkEl.href = url;
-          linkEl.target = "_blank";
-          linkEl.rel = "noopener noreferrer";
-          linkEl.textContent = `関連リンク${index + 1}`;
-          itemDiv.appendChild(linkEl);
+        // 静的表示用リンクカード群（カードスタイル）
+        let staticLinkCards = [];
+        const urlFields = [
+          { url: data.url1, title: data.url1_title },
+          { url: data.url2, title: data.url2_title },
+          { url: data.url3, title: data.url3_title }
+        ].filter(field => field.url);
+        urlFields.forEach(({ url, title }) => {
+          const linkCard = document.createElement("a");
+          linkCard.href = url;
+          linkCard.target = "_blank";
+          linkCard.rel = "noopener noreferrer";
+          linkCard.classList.add("link-card");
+
+          const linkTitle = document.createElement("div");
+          linkTitle.textContent = title || "タイトルなし";
+          linkTitle.classList.add("link-card-title");
+
+          const linkUrl = document.createElement("div");
+          linkUrl.textContent = url;
+          linkUrl.classList.add("link-card-url");
+
+          linkCard.appendChild(linkTitle);
+          linkCard.appendChild(linkUrl);
+          itemDiv.appendChild(linkCard);
+          staticLinkCards.push(linkCard);
+        });
+
+        // 編集ボタン（静的モード）
+        const editButton = document.createElement("button");
+        editButton.textContent = "編集";
+        editButton.style.marginTop = "10px";
+        itemDiv.appendChild(editButton);
+
+        // --- 編集モードへの切替処理 ---
+        editButton.addEventListener("click", () => {
+          // 編集用のタイトル・在庫数の input/textarea を作成
+          const titleInput = document.createElement("input");
+          titleInput.type = "text";
+          titleInput.value = data.title || data.id;
+          titleInput.style.width = "100%";
+          titleInput.style.marginBottom = "10px";
+
+          const descriptionTextarea = document.createElement("textarea");
+          descriptionTextarea.style.width = "100%";
+          descriptionTextarea.style.marginBottom = "10px";
+          if (data.text) {
+            descriptionTextarea.value = data.text;
+          } else {
+            descriptionTextarea.placeholder = "在庫数を入力";
+          }
+
+          // 編集モード用の URL 入力欄コンテナ（順番：リンクタイトル, URL）
+          const urlContainer = document.createElement("div");
+          urlContainer.style.marginBottom = "10px";
+          for (let i = 1; i <= 3; i++) {
+            const urlTitleInput = document.createElement("input");
+            urlTitleInput.type = "text";
+            urlTitleInput.placeholder = `リンクタイトル${i}`;
+            urlTitleInput.style.width = "100%";
+            urlTitleInput.style.marginBottom = "5px";
+            urlTitleInput.value = data["url" + i + "_title"] || "";
+            urlContainer.appendChild(urlTitleInput);
+
+            const urlInput = document.createElement("input");
+            urlInput.type = "text";
+            urlInput.placeholder = `URL${i}`;
+            urlInput.style.width = "100%";
+            urlInput.style.marginBottom = "10px";
+            urlInput.value = data["url" + i] || "";
+            urlContainer.appendChild(urlInput);
+          }
+
+          // 切り替え：静的表示要素 → 編集用要素
+          editButton.style.display = "none";
+          itemDiv.replaceChild(titleInput, titleHeading);
+          if (descriptionP) {
+            itemDiv.replaceChild(descriptionTextarea, descriptionP);
+          } else {
+            itemDiv.insertBefore(descriptionTextarea, editButton);
+          }
+          // 削除：静的リンクカード群
+          staticLinkCards.forEach(card => card.remove());
+          // 編集用 URL 入力欄を挿入（編集ボタンの上に）
+          itemDiv.insertBefore(urlContainer, editButton);
+
+          // 編集用 Save, Cancel ボタン作成
+          const saveButton = document.createElement("button");
+          saveButton.textContent = "保存";
+          saveButton.style.marginRight = "10px";
+          const cancelButton = document.createElement("button");
+          cancelButton.textContent = "キャンセル";
+          itemDiv.appendChild(saveButton);
+          itemDiv.appendChild(cancelButton);
+
+          // 保存ボタンの処理
+          saveButton.addEventListener("click", async () => {
+            const newTitle = titleInput.value.trim();
+            const newText = descriptionTextarea.value.trim();
+            // URL入力欄から値を収集（順番：リンクタイトル, URL）
+            const newUrls = {};
+            const urlInputs = urlContainer.querySelectorAll("input");
+            for (let i = 0; i < 3; i++) {
+              newUrls["url" + (i + 1) + "_title"] = urlInputs[i * 2].value.trim();
+              newUrls["url" + (i + 1)] = urlInputs[i * 2 + 1].value.trim();
+            }
+            try {
+              await db.collection("products").doc(data.id).update({
+                title: newTitle,
+                text: newText,
+                ...newUrls
+              });
+              // 更新成功後、data を更新
+              data.title = newTitle;
+              data.text = newText;
+              for (let i = 1; i <= 3; i++) {
+                data["url" + i] = newUrls["url" + i];
+                data["url" + i + "_title"] = newUrls["url" + i + "_title"];
+              }
+              // 再生成：静的表示用要素
+              const newTitleHeading = document.createElement("h3");
+              newTitleHeading.textContent = newTitle || data.id;
+              itemDiv.replaceChild(newTitleHeading, titleInput);
+              titleHeading = newTitleHeading;  // 更新して再利用
+
+              let newDescriptionP;
+              if (newText) {
+                newDescriptionP = document.createElement("p");
+                newDescriptionP.innerHTML = `在庫数: ${newText.replace(/\n/g, "<br>")}`;
+                if (descriptionP) {
+                  itemDiv.replaceChild(newDescriptionP, descriptionTextarea);
+                } else {
+                  itemDiv.insertBefore(newDescriptionP, editButton);
+                }
+                descriptionP = newDescriptionP;
+              } else {
+                itemDiv.removeChild(descriptionTextarea);
+                descriptionP = null;
+              }
+              // 編集用 URL 入力欄を削除
+              itemDiv.removeChild(urlContainer);
+              // 再生成：静的リンクカード群（カードスタイル）
+              const updatedUrlFields = [
+                { url: data.url1, title: data.url1_title },
+                { url: data.url2, title: data.url2_title },
+                { url: data.url3, title: data.url3_title }
+              ].filter(field => field.url);
+              staticLinkCards = [];
+              updatedUrlFields.forEach(({ url, title }) => {
+                const linkCard = document.createElement("a");
+                linkCard.href = url;
+                linkCard.target = "_blank";
+                linkCard.rel = "noopener noreferrer";
+                linkCard.classList.add("link-card");
+
+                const linkTitle = document.createElement("div");
+                linkTitle.textContent = title || "タイトルなし";
+                linkTitle.classList.add("link-card-title");
+
+                const linkUrl = document.createElement("div");
+                linkUrl.textContent = url;
+                linkUrl.classList.add("link-card-url");
+
+                linkCard.appendChild(linkTitle);
+                linkCard.appendChild(linkUrl);
+                itemDiv.insertBefore(linkCard, editButton);
+                staticLinkCards.push(linkCard);
+              });
+              // 編集用 Save, Cancel ボタンを削除、編集ボタン再表示
+              itemDiv.removeChild(saveButton);
+              itemDiv.removeChild(cancelButton);
+              editButton.style.display = "inline-block";
+            } catch (err) {
+              console.error("更新エラー:", err);
+              alert("更新に失敗しました。再度お試しください。");
+            }
+          });
+
+          // キャンセルボタンの処理：元の静的表示に戻す
+          cancelButton.addEventListener("click", () => {
+            itemDiv.replaceChild(titleHeading, titleInput);
+            if (descriptionP) {
+              itemDiv.replaceChild(descriptionP, descriptionTextarea);
+            } else {
+              itemDiv.removeChild(descriptionTextarea);
+            }
+            itemDiv.removeChild(urlContainer);
+            // 再生成：元の静的リンクカード群
+            staticLinkCards.forEach(card => {
+              itemDiv.insertBefore(card, editButton);
+            });
+            itemDiv.removeChild(saveButton);
+            itemDiv.removeChild(cancelButton);
+            editButton.style.display = "inline-block";
+          });
         });
 
         resultsContainer.appendChild(itemDiv);
       });
     }
+
+    // 初回ロード時にデータを取得（onSnapshot を利用してリアルタイム更新）
+    db.collection("products").onSnapshot((snapshot) => {
+      allProducts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      // もし検索キーワードが入力されていれば、その条件に合致するものだけを表示
+      const keyword = keywordInput.value.trim();
+      if (keyword) {
+        const matchedResults = allProducts.filter((data) =>
+          (data.title && data.title.includes(keyword)) ||
+          (data.text && data.text.includes(keyword))
+        );
+        displayResults(matchedResults);
+      }
+    });
   </script>
 </body>
 </html>
