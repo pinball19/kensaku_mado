@@ -29,8 +29,9 @@
       margin-bottom: 20px;
       flex-wrap: nowrap;
     }
-    .search-container input {
+    .search-container input[type="text"] {
       flex: 1;
+      min-width: 0;
       padding: 10px;
       font-size: 1rem;
       margin-right: 10px;
@@ -45,6 +46,13 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
+      flex-shrink: 0;
+    }
+    #video-preview {
+      width: 100%;
+      max-height: 300px;
+      display: none;
+      border-radius: 8px;
     }
     .result-item {
       border: 1px solid #ccc;
@@ -63,13 +71,16 @@
       color: #555;
       white-space: pre-wrap;
     }
-    .stock-input {
+    .result-item input[type="number"] {
       width: 60px;
+      margin: 0 10px;
       padding: 5px;
-      margin: 5px;
-      text-align: center;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+    }
+    .result-item button {
+      padding: 5px 10px;
+      margin: 0 5px;
+      font-size: 0.9rem;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -83,6 +94,8 @@
       <button id="scanBtn">スキャン</button>
     </div>
 
+    <video id="video-preview" autoplay></video>
+
     <div id="errorContainer" class="error-message"></div>
     <div id="results"></div>
   </div>
@@ -93,7 +106,7 @@
   <script src="https://unpkg.com/@zxing/library@latest"></script>
   
   <script>
-    // Firebase 設定
+    // 🔹 Firebase設定
     const firebaseConfig = {
       apiKey: "AIzaSyCnRbmcPezD4Osisss6XebmU15ukBqttQw",
       authDomain: "slack-bot-firebase-7991a.firebaseapp.com",
@@ -102,6 +115,7 @@
       messagingSenderId: "215585745043",
       appId: "1:215585745043:web:0c70ac99c5066b56cd4566"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
@@ -109,6 +123,7 @@
       const searchBtn = document.getElementById("searchBtn");
       const scanBtn = document.getElementById("scanBtn");
       const keywordInput = document.getElementById("keywordInput");
+      const video = document.getElementById("video-preview");
       const resultsContainer = document.getElementById("results");
 
       // 🔹 検索ボタンのクリック処理（手入力）
@@ -119,6 +134,25 @@
           return;
         }
         searchProduct(keyword);
+      });
+
+      // 🔹 スキャンボタンのクリック処理（バーコード検索）
+      scanBtn.addEventListener("click", async () => {
+        try {
+          video.style.display = "block";
+          const codeReader = new ZXing.BrowserBarcodeReader();
+          
+          codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
+            if (result) {
+              keywordInput.value = result.text;
+              searchProduct(result.text); // 🔹 Firestore検索
+              codeReader.reset();
+              video.style.display = "none";
+            }
+          });
+        } catch (error) {
+          alert("カメラを使用できません：" + error.message);
+        }
       });
 
       // 🔹 Firestore検索処理（手入力 or バーコード）
@@ -157,26 +191,50 @@
         stock.textContent = `在庫数: ${product.stock || 0}`;
         itemDiv.appendChild(stock);
 
-        const stockInput = document.createElement("input");
-        stockInput.type = "number";
-        stockInput.min = "1";
-        stockInput.value = "1";
-        stockInput.classList.add("stock-input");
-        itemDiv.appendChild(stockInput);
+        // -----------------------------
+        // 在庫追加用：入力フィールドとボタン
+        // -----------------------------
+        const addInput = document.createElement("input");
+        addInput.type = "number";
+        addInput.value = 1;
+        addInput.min = 1;
+        addInput.style.width = "60px";
+        addInput.style.marginRight = "5px";
+        itemDiv.appendChild(addInput);
 
         const increaseButton = document.createElement("button");
         increaseButton.textContent = "在庫追加";
         increaseButton.addEventListener("click", () => {
-          const changeAmount = parseInt(stockInput.value, 10);
-          updateStock(productId, product.stock + changeAmount);
+          const quantity = parseInt(addInput.value, 10);
+          if (isNaN(quantity) || quantity < 1) {
+            alert("有効な数量を入力してください");
+            return;
+          }
+          updateStock(productId, (product.stock || 0) + quantity);
         });
         itemDiv.appendChild(increaseButton);
+
+        // -----------------------------
+        // 在庫減少用：入力フィールドとボタン
+        // -----------------------------
+        const subtractInput = document.createElement("input");
+        subtractInput.type = "number";
+        subtractInput.value = 1;
+        subtractInput.min = 1;
+        subtractInput.style.width = "60px";
+        subtractInput.style.marginLeft = "15px";
+        subtractInput.style.marginRight = "5px";
+        itemDiv.appendChild(subtractInput);
 
         const decreaseButton = document.createElement("button");
         decreaseButton.textContent = "在庫減少";
         decreaseButton.addEventListener("click", () => {
-          const changeAmount = parseInt(stockInput.value, 10);
-          updateStock(productId, Math.max(product.stock - changeAmount, 0));
+          const quantity = parseInt(subtractInput.value, 10);
+          if (isNaN(quantity) || quantity < 1) {
+            alert("有効な数量を入力してください");
+            return;
+          }
+          updateStock(productId, Math.max((product.stock || 0) - quantity, 0));
         });
         itemDiv.appendChild(decreaseButton);
 
@@ -188,7 +246,8 @@
         db.collection("products").doc(productId).update({ stock: newStock })
           .then(() => {
             alert("在庫を更新しました");
-            searchProduct(keywordInput.value); // 再検索して最新の在庫を表示
+            // 再検索して最新の在庫を表示
+            searchProduct(keywordInput.value);
           })
           .catch((error) => {
             console.error("在庫更新エラー:", error);
