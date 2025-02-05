@@ -25,9 +25,9 @@
     }
     .search-container {
       display: flex;
+      flex-wrap: wrap; /* 🔹 ボタンが小さい画面で重ならないようにするためwrapに変更 */
       align-items: center;
       margin-bottom: 20px;
-      flex-wrap: nowrap;
     }
     .search-container input[type="text"] {
       flex: 1;
@@ -46,8 +46,13 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      flex-shrink: 0;
+      margin-top: 5px; /* 🔹 ラップされたときに上下余白を少し取る */
     }
+    /* 2つめ以降のボタンに左マージン */
+    .search-container button:not(:first-of-type) {
+      margin-left: 10px;
+    }
+
     #video-preview {
       width: 100%;
       max-height: 300px;
@@ -532,10 +537,14 @@
             snapshot.forEach(doc => {
               const data = doc.data();
               const time = data.timestamp ? data.timestamp.toDate().toLocaleString() : "日時不明";
+              
+              // 🔹 ProductID を表示したくないので削除
+              // もし残したい場合は以下を追加:
+              // `ProductID: ${data.productId} <br>`
+
               html += `
                 <div class="history-item">
                   <strong>[${data.changeType}]</strong> (${time})<br>
-                  ProductID: ${data.productId}<br>
                   内容: ${data.description}
                 </div>
               `;
