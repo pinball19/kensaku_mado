@@ -82,10 +82,11 @@
       display: flex;
       align-items: center;
       margin-bottom: 20px;
-      flex-wrap: nowrap;  /* ← 追加：折り返さない */
+      flex-wrap: nowrap;  /* 折り返しを防ぐ */
     }
     .search-container input[type="text"] {
       flex: 1;
+      min-width: 0;
       padding: 10px;
       font-size: 1rem;
       margin-right: 10px;
@@ -100,7 +101,7 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      flex-shrink: 0; /* ← 追加：ボタンの縮み防止 */
+      flex-shrink: 0;
     }
     /* 出力窓のデザイン（過去に記述したコード4と同じ） */
     .result-item {
@@ -164,10 +165,12 @@
       .search-container {
          padding: 0;
       }
-      /* ボタンのパディングも若干調整 */
       .search-container button {
          padding: 10px;
          font-size: 0.9rem;
+      }
+      .result-item {
+         max-width: 100%;
       }
     }
   </style>
@@ -314,7 +317,7 @@
         document.getElementById("auth-container").style.display = "none";
         loader.style.display = "none";
         appContainer.style.display = "block";
-        fetchAllProducts();  // Firestore からデータを取得
+        subscribeToProducts();  // onSnapshot によるリアルタイム更新を開始
       } else {
         // 未認証時：認証用コンテナを表示、メインアプリは非表示
         document.getElementById("auth-container").style.display = "block";
@@ -327,18 +330,25 @@
       auth.signOut().catch((err) => console.error("サインアウトエラー:", err));
     });
 
-    // Firestore データの取得・検索処理
+    // リアルタイム更新用：Firestore の onSnapshot を使ってデータを取得
     let allProducts = [];
-    async function fetchAllProducts() {
-      try {
-        const snapshot = await db.collection("products").get();
+    function subscribeToProducts() {
+      db.collection("products").onSnapshot((snapshot) => {
+        // 変更のあったドキュメントだけでなく全体を更新する場合
         allProducts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      } catch (err) {
-        console.error("データ取得エラー:", err);
-        errorContainer.textContent = "データ取得中にエラーが発生しました。";
-      }
+        // もし現在検索キーワードが入力されているなら、再度検索結果を表示する
+        const keyword = keywordInput.value.trim();
+        if (keyword) {
+          const matchedResults = allProducts.filter((data) =>
+            (data.title && data.title.includes(keyword)) ||
+            (data.text && data.text.includes(keyword))
+          );
+          displayResults(matchedResults);
+        }
+      });
     }
 
+    // 検索ボタンの処理
     searchBtn.addEventListener("click", () => {
       errorContainer.textContent = "";
       const keyword = keywordInput.value.trim();
@@ -346,7 +356,6 @@
         errorContainer.textContent = "検索キーワードを入力してください。";
         return;
       }
-      // 「titleフィールド」と「textフィールド」を検索対象に部分一致で抽出
       const matchedResults = allProducts.filter((data) =>
         (data.title && data.title.includes(keyword)) ||
         (data.text && data.text.includes(keyword))
@@ -354,8 +363,7 @@
       displayResults(matchedResults);
     });
 
-    // 出力窓の内容・デザインを「過去に記述したコード4」と同じにし、
-    // かつ編集ボタンをクリックしてから編集モードに切り替えて各フィールド（title, text, url1～url3 とそのタイトル）を修正できる機能を追加
+    // 出力窓の内容・デザイン（過去に記述したコード4と同じ）に、編集機能を追加
     function displayResults(results) {
       resultsContainer.innerHTML = ""; // 結果をクリア
 
@@ -523,7 +531,7 @@
               }
               // 編集用 URL 入力欄を削除
               itemDiv.removeChild(urlContainer);
-              // 再生成：静的リンクカード群
+              // 再生成：静的リンクカード群（カードスタイル）
               const updatedUrlFields = [
                 { url: data.url1, title: data.url1_title },
                 { url: data.url2, title: data.url2_title },
@@ -583,8 +591,19 @@
       });
     }
 
-    // 初回ロード時にデータを取得
-    fetchAllProducts();
+    // 初回ロード時にデータを取得（onSnapshot を利用してリアルタイム更新）
+    db.collection("products").onSnapshot((snapshot) => {
+      allProducts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      // もし検索キーワードが入力されていれば、その条件に合致するものだけを表示
+      const keyword = keywordInput.value.trim();
+      if (keyword) {
+        const matchedResults = allProducts.filter((data) =>
+          (data.title && data.title.includes(keyword)) ||
+          (data.text && data.text.includes(keyword))
+        );
+        displayResults(matchedResults);
+      }
+    });
   </script>
 </body>
 </html>
