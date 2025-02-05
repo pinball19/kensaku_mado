@@ -115,7 +115,7 @@
       const video = document.getElementById("video-preview");
       const resultsContainer = document.getElementById("results");
 
-      // 🔹 検索ボタンのクリック処理
+      // 🔹 検索ボタンのクリック処理（手入力）
       searchBtn.addEventListener("click", () => {
         const keyword = keywordInput.value.trim();
         if (!keyword) {
@@ -125,17 +125,16 @@
         searchProduct(keyword);
       });
 
-      // 🔹 スキャンボタンのクリック処理
+      // 🔹 スキャンボタンのクリック処理（バーコード検索）
       scanBtn.addEventListener("click", async () => {
         try {
           video.style.display = "block";
           const codeReader = new ZXing.BrowserBarcodeReader();
           
-          // バーコードスキャン
           codeReader.decodeFromVideoDevice(undefined, video, (result, err) => {
             if (result) {
               keywordInput.value = result.text;
-              searchProduct(result.text);
+              searchProduct(result.text); // 🔹 Firestore検索
               codeReader.reset();
               video.style.display = "none";
             }
@@ -145,19 +144,19 @@
         }
       });
 
-      // 🔹 商品検索（Firestoreから検索）
+      // 🔹 Firestore検索処理（手入力 or バーコード）
       function searchProduct(keyword) {
         resultsContainer.innerHTML = `<p>「${keyword}」で検索中...</p>`;
 
         db.collection("products")
-          .where("barcode", "==", keyword)  // 🔹 Firestoreでバーコード番号を検索
+          .where("barcode", "==", keyword)  // 🔹 バーコード検索
           .get()
           .then((querySnapshot) => {
             resultsContainer.innerHTML = "";
             if (!querySnapshot.empty) {
               querySnapshot.forEach((doc) => {
                 const product = doc.data();
-                displayProductInfo(product);
+                displayProductInfo(doc.id, product);
               });
             } else {
               resultsContainer.innerHTML = "<p>該当する商品が見つかりません</p>";
@@ -168,8 +167,8 @@
           });
       }
 
-      // 🔹 検索結果を表示
-      function displayProductInfo(product) {
+      // 🔹 検索結果を表示 + 在庫更新機能
+      function displayProductInfo(productId, product) {
         const itemDiv = document.createElement("div");
         itemDiv.classList.add("result-item");
 
@@ -181,7 +180,29 @@
         stock.textContent = `在庫数: ${product.stock || 0}`;
         itemDiv.appendChild(stock);
 
+        const increaseButton = document.createElement("button");
+        increaseButton.textContent = "在庫を追加";
+        increaseButton.addEventListener("click", () => updateStock(productId, product.stock + 1));
+        itemDiv.appendChild(increaseButton);
+
+        const decreaseButton = document.createElement("button");
+        decreaseButton.textContent = "在庫を減少";
+        decreaseButton.addEventListener("click", () => updateStock(productId, Math.max(product.stock - 1, 0)));
+        itemDiv.appendChild(decreaseButton);
+
         resultsContainer.appendChild(itemDiv);
+      }
+
+      // 🔹 Firestoreの在庫更新処理
+      function updateStock(productId, newStock) {
+        db.collection("products").doc(productId).update({ stock: newStock })
+          .then(() => {
+            alert("在庫を更新しました");
+            searchProduct(keywordInput.value); // 再検索して最新の在庫を表示
+          })
+          .catch((error) => {
+            console.error("在庫更新エラー:", error);
+          });
       }
     });
   </script>
